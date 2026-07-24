@@ -5,6 +5,7 @@ import "../../global.css";
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import AppTabs from '@/components/app-tabs';
+import { RemindersProvider } from '@/context/RemindersContext';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -12,8 +13,10 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
+      <RemindersProvider>
+        <AnimatedSplashOverlay />
+        <AppTabs />
+      </RemindersProvider>
     </ThemeProvider>
   );
 }

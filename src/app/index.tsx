@@ -1,447 +1,322 @@
 import { Audio } from 'expo-av';
 import { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
-  Modal,
-  Platform,
-  Pressable,
   ScrollView,
   StatusBar,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, {
+  Easing,
+  FadeInDown,
+  FadeInUp,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 
-// ─── Types ──────────────────────────────────────────────────────────────────
-interface Reminder {
-  id: string;
-  title: string;
-  hour: number;
-  minute: number;
-  active: boolean;
-  ringing: boolean;
-}
+import { useReminders } from '@/context/RemindersContext';
+import { ReminderCard } from '@/components/reminders/ReminderCard';
+import { AddReminderModal } from '@/components/reminders/AddReminderModal';
+import { AlarmOverlay } from '@/components/reminders/AlarmOverlay';
+import { AppIcon } from '@/components/icons/AppIcons';
+import { getLiveTime, getGreeting } from '@/utils/helpers';
 
 // ─── Alarm sound ──────────────────────────────────────────────────────────────
 const ALARM_SOURCE = require('../../assets/audio/alarm.ogg');
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-function pad(n: number) {
-  return n.toString().padStart(2, '0');
-}
-function formatTime(hour: number, minute: number) {
-  const ampm = hour >= 12 ? 'PM' : 'AM';
-  const h = hour % 12 || 12;
-  return `${h}:${pad(minute)} ${ampm}`;
-}
-function nowHM() {
-  const now = new Date();
-  return { hour: now.getHours(), minute: now.getMinutes() };
-}
-function uid() {
-  return Math.random().toString(36).slice(2);
-}
-
-// ─── Main Screen ──────────────────────────────────────────────────────────────
+// ─── Home Screen ──────────────────────────────────────────────────────────────
 export default function HomeScreen() {
-  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const { reminders, addReminder, deleteReminder, toggleReminder, dismissAlarm, snoozeReminder, ringingReminder } =
+    useReminders();
   const [showModal, setShowModal] = useState(false);
-  const [title, setTitle] = useState('');
-  const [hour, setHour] = useState(8);
-  const [minute, setMinute] = useState(0);
-  const [ampm, setAmPm] = useState<'AM' | 'PM'>('AM');
+  const [liveTime, setLiveTime] = useState(getLiveTime());
+  const [weather, setWeather] = useState<{ temp: string; icon: keyof typeof Ionicons.glyphMap }>({
+    temp: '22°C',
+    icon: 'partly-sunny',
+  });
 
-  // Track which reminder is currently ringing
-  const [ringingId, setRingingId] = useState<string | null>(null);
-
-  // Sound reference using expo-av
+  // Sound ref
   const soundRef = useRef<Audio.Sound | null>(null);
+  const clockRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Tick every 10 seconds to check for due reminders
-  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
+  // FAB pulse / latido animation
+  const fabScale = useSharedValue(1);
   useEffect(() => {
-    tickRef.current = setInterval(() => {
-      const { hour: h, minute: m } = nowHM();
-      setReminders(prev =>
-        prev.map(r => {
-          if (r.active && !r.ringing && r.hour === h && r.minute === m) {
-            return { ...r, ringing: true };
-          }
-          return r;
-        })
-      );
-    }, 10_000);
+    fabScale.value = withRepeat(
+      withSequence(
+        withTiming(1.08, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      false
+    );
+  }, []);
+  const fabStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: fabScale.value }],
+  }));
+
+  // Fetch real temperature from Open-Meteo
+  useEffect(() => {
+    async function loadWeather() {
+      try {
+        const res = await fetch(
+          'https://api.open-meteo.com/v1/forecast?latitude=19.4326&longitude=-99.1332&current_weather=true'
+        );
+        const data = await res.json();
+        if (data.current_weather?.temperature !== undefined) {
+          const t = Math.round(data.current_weather.temperature);
+          const code = data.current_weather.weathercode ?? 0;
+          let iconName: keyof typeof Ionicons.glyphMap = 'partly-sunny';
+          if (code === 0) iconName = 'sunny';
+          else if (code >= 1 && code <= 3) iconName = 'partly-sunny';
+          else if (code >= 45 && code <= 48) iconName = 'cloudy';
+          else if (code >= 51) iconName = 'rainy';
+          setWeather({ temp: `${t}°C`, icon: iconName });
+        }
+      } catch (_) {}
+    }
+    loadWeather();
+  }, []);
+
+
+
+  // Live clock — updates every second
+  useEffect(() => {
+    clockRef.current = setInterval(() => setLiveTime(getLiveTime()), 1000);
     return () => {
-      if (tickRef.current) clearInterval(tickRef.current);
+      if (clockRef.current) clearInterval(clockRef.current);
     };
   }, []);
 
-  // Start / stop looping alarm using expo-av
+  // Alarm sound
   useEffect(() => {
-    let isMounted = true;
-
-    async function updateAlarmSound() {
-      if (ringingId) {
+    let mounted = true;
+    async function update() {
+      if (ringingReminder) {
         try {
-          if (soundRef.current) {
-            await soundRef.current.unloadAsync();
-          }
-          const { sound } = await Audio.Sound.createAsync(
-            ALARM_SOURCE,
-            { isLooping: true, shouldPlay: true }
-          );
-          if (isMounted) {
-            soundRef.current = sound;
-          } else {
-            await sound.unloadAsync();
-          }
-        } catch (err) {
-          console.log('Error playing alarm:', err);
+          if (soundRef.current) await soundRef.current.unloadAsync();
+          const { sound } = await Audio.Sound.createAsync(ALARM_SOURCE, {
+            isLooping: true,
+            shouldPlay: true,
+          });
+          if (mounted) soundRef.current = sound;
+          else await sound.unloadAsync();
+        } catch (e) {
+          console.log('Alarm sound error:', e);
         }
       } else {
         if (soundRef.current) {
           try {
             await soundRef.current.stopAsync();
             await soundRef.current.unloadAsync();
-          } catch (e) {}
+          } catch (_) {}
           soundRef.current = null;
         }
       }
     }
-
-    updateAlarmSound();
-
+    update();
     return () => {
-      isMounted = false;
-      if (soundRef.current) {
-        soundRef.current.unloadAsync();
-      }
+      mounted = false;
+      soundRef.current?.unloadAsync();
     };
-  }, [ringingId]);
+  }, [ringingReminder?.id]);
 
-  // Watch for a newly ringing reminder
-  useEffect(() => {
-    const ringing = reminders.find(r => r.ringing);
-    if (ringing && ringingId !== ringing.id) {
-      setRingingId(ringing.id);
-    }
-  }, [reminders]);
+  const activeCount = reminders.filter((r) => r.active).length;
 
-  // ── Actions ───────────────────────────────────────────────────────────────
-  function addReminder() {
-    if (!title.trim()) {
-      Alert.alert('Escribe un nombre para el recordatorio');
-      return;
-    }
-    const realHour = ampm === 'PM' && hour !== 12 ? hour + 12 : ampm === 'AM' && hour === 12 ? 0 : hour;
-    setReminders(prev => [
-      ...prev,
-      { id: uid(), title: title.trim(), hour: realHour, minute, active: true, ringing: false },
-    ]);
-    setTitle('');
-    setHour(8);
-    setMinute(0);
-    setAmPm('AM');
-    setShowModal(false);
-  }
-
-  function dismissAlarm() {
-    setRingingId(null);
-    setReminders(prev =>
-      prev.map(r => (r.ringing ? { ...r, ringing: false, active: false } : r))
-    );
-  }
-
-  function deleteReminder(id: string) {
-    if (ringingId === id) dismissAlarm();
-    setReminders(prev => prev.filter(r => r.id !== id));
-  }
-
-  function toggleReminder(id: string) {
-    setReminders(prev =>
-      prev.map(r => (r.id === id ? { ...r, active: !r.active, ringing: false } : r))
-    );
-  }
-
-  // ── Ringing overlay ───────────────────────────────────────────────────────
-  const ringingReminder = reminders.find(r => r.ringing);
-
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#0F0F1A' }}>
-      <StatusBar barStyle="light-content" backgroundColor="#0F0F1A" />
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#080816' }}>
+      <StatusBar barStyle="light-content" backgroundColor="#080816" />
 
       {/* ── Header ── */}
-      <View style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 8 }}>
-        <Text style={{ color: '#A78BFA', fontSize: 13, fontWeight: '600', letterSpacing: 2, textTransform: 'uppercase' }}>
-          Recordis
-        </Text>
-        <Text style={{ color: '#FFFFFF', fontSize: 28, fontWeight: '800', marginTop: 4 }}>
-          Mis Recordatorios
-        </Text>
-        <Text style={{ color: '#6B7280', fontSize: 14, marginTop: 2 }}>
-          {reminders.filter(r => r.active).length} activos
-        </Text>
-      </View>
-
-      {/* ── List ── */}
-      <ScrollView
-        style={{ flex: 1, paddingHorizontal: 24 }}
-        contentContainerStyle={{ paddingBottom: 120, paddingTop: 8 }}
-        showsVerticalScrollIndicator={false}
+      <Animated.View
+        entering={FadeInDown.duration(550).springify()}
+        style={{
+          paddingHorizontal: 24,
+          paddingTop: 18,
+          paddingBottom: 14,
+          borderBottomWidth: 1,
+          borderBottomColor: '#141428',
+        }}
       >
-        {reminders.length === 0 && (
-          <View style={{ alignItems: 'center', marginTop: 80 }}>
-            <Text style={{ fontSize: 48 }}>⏰</Text>
-            <Text style={{ color: '#4B5563', fontSize: 16, marginTop: 12, textAlign: 'center' }}>
-              Sin recordatorios{'\n'}Toca + para agregar uno
-            </Text>
-          </View>
-        )}
-
-        {reminders.map(r => (
-          <View
-            key={r.id}
-            style={{
-              backgroundColor: r.ringing ? '#1E0A2E' : '#1A1A2E',
-              borderRadius: 20,
-              padding: 20,
-              marginBottom: 14,
-              borderWidth: 1,
-              borderColor: r.ringing ? '#A78BFA' : '#2D2D4A',
-              flexDirection: 'row',
-              alignItems: 'center',
-            }}
-          >
-            {/* Toggle */}
-            <TouchableOpacity
-              onPress={() => toggleReminder(r.id)}
+        {/* Greeting & Weather */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Ionicons name="partly-sunny" size={24} color="#FBBF24" />
+            <Text
               style={{
-                width: 28,
-                height: 28,
-                borderRadius: 14,
-                borderWidth: 2,
-                borderColor: r.active ? '#A78BFA' : '#4B5563',
-                backgroundColor: r.active ? '#A78BFA22' : 'transparent',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginRight: 14,
+                color: '#FFF',
+                fontSize: 22,
+                fontWeight: '800',
+                letterSpacing: 0.5,
               }}
             >
-              {r.active && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#A78BFA' }} />}
-            </TouchableOpacity>
-
-            {/* Info */}
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: r.active ? '#FFFFFF' : '#6B7280', fontSize: 17, fontWeight: '700' }}>
-                {r.ringing ? '🔔 ' : ''}{r.title}
-              </Text>
-              <Text style={{ color: r.active ? '#A78BFA' : '#4B5563', fontSize: 24, fontWeight: '800', marginTop: 2 }}>
-                {formatTime(r.hour, r.minute)}
-              </Text>
-            </View>
-
-            {/* Delete */}
-            <TouchableOpacity
-              onPress={() => deleteReminder(r.id)}
-              style={{ padding: 8 }}
-            >
-              <Text style={{ color: '#EF4444', fontSize: 20 }}>✕</Text>
-            </TouchableOpacity>
+              {getGreeting()}
+            </Text>
           </View>
-        ))}
+          
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#1A1A2E', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 }}>
+            <Ionicons name={weather.icon} size={16} color="#FBBF24" />
+            <Text style={{ color: '#A78BFA', fontSize: 14, fontWeight: '700' }}>
+              {weather.temp}
+            </Text>
+          </View>
+        </View>
+
+        <Text
+          style={{
+            color: '#FFFFFF',
+            fontSize: 30,
+            fontWeight: '900',
+            letterSpacing: -0.5,
+            marginBottom: 10,
+          }}
+        >
+          Mis Recordatorios
+        </Text>
+
+        {/* Live clock + badge */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Ionicons name="time-outline" size={18} color="#A78BFA" />
+            <Text
+              style={{
+                color: '#A78BFA',
+                fontSize: 17,
+                fontWeight: '700',
+                letterSpacing: 0.8,
+              }}
+            >
+              {liveTime}
+            </Text>
+          </View>
+          <View
+            style={{
+              backgroundColor: '#160D35',
+              borderRadius: 20,
+              paddingHorizontal: 12,
+              paddingVertical: 5,
+              borderWidth: 1,
+              borderColor: '#2D1F5E',
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <Ionicons name="alarm-outline" size={13} color="#C084FC" />
+            <Text style={{ color: '#C084FC', fontSize: 13, fontWeight: '700' }}>
+              {activeCount} activos
+            </Text>
+          </View>
+        </View>
+      </Animated.View>
+
+      {/* ── Reminders list ── */}
+      <ScrollView
+        style={{ flex: 1, paddingHorizontal: 18 }}
+        contentContainerStyle={{ paddingBottom: 140, paddingTop: 16 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {reminders.length === 0 ? (
+          <Animated.View
+            entering={FadeInUp.delay(200).springify()}
+            style={{ alignItems: 'center', marginTop: 72 }}
+          >
+            <View
+              style={{
+                width: 100,
+                height: 100,
+                borderRadius: 50,
+                backgroundColor: '#111128',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 1.5,
+                borderColor: '#2D1F5E',
+                marginBottom: 20,
+              }}
+            >
+              <Ionicons name="alarm-outline" size={48} color="#2D1F5E" />
+            </View>
+            <Text
+              style={{
+                color: '#4B5563',
+                fontSize: 18,
+                fontWeight: '700',
+                textAlign: 'center',
+                marginBottom: 6,
+              }}
+            >
+              Sin recordatorios
+            </Text>
+            <Text style={{ color: '#1F2937', fontSize: 14, textAlign: 'center' }}>
+              Toca el botón + para crear uno
+            </Text>
+          </Animated.View>
+        ) : (
+          reminders.map((r, i) => (
+            <ReminderCard
+              key={r.id}
+              reminder={r}
+              index={i}
+              onToggle={() => toggleReminder(r.id)}
+              onDelete={() => deleteReminder(r.id)}
+            />
+          ))
+        )}
       </ScrollView>
 
       {/* ── FAB ── */}
-      <TouchableOpacity
-        onPress={() => setShowModal(true)}
-        style={{
-          position: 'absolute',
-          bottom: 40,
-          right: 28,
-          width: 64,
-          height: 64,
-          borderRadius: 32,
-          backgroundColor: '#7C3AED',
-          alignItems: 'center',
-          justifyContent: 'center',
-          shadowColor: '#7C3AED',
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.5,
-          shadowRadius: 16,
-          elevation: 10,
-        }}
-      >
-        <Text style={{ color: '#FFFFFF', fontSize: 32, lineHeight: 36 }}>+</Text>
-      </TouchableOpacity>
-
-      {/* ── Add Reminder Modal ── */}
-      <Modal visible={showModal} transparent animationType="slide">
-        <Pressable
-          style={{ flex: 1, backgroundColor: '#00000088', justifyContent: 'flex-end' }}
-          onPress={() => setShowModal(false)}
-        >
-          <Pressable onPress={(e: any) => e.stopPropagation()}>
-            <View
-              style={{
-                backgroundColor: '#16162A',
-                borderTopLeftRadius: 28,
-                borderTopRightRadius: 28,
-                padding: 28,
-                paddingBottom: Platform.OS === 'ios' ? 44 : 28,
-              }}
-            >
-              <Text style={{ color: '#FFFFFF', fontSize: 22, fontWeight: '800', marginBottom: 20 }}>
-                Nuevo Recordatorio
-              </Text>
-
-              {/* Title input */}
-              <TextInput
-                value={title}
-                onChangeText={setTitle}
-                placeholder="¿Qué tienes que hacer?"
-                placeholderTextColor="#4B5563"
-                style={{
-                  backgroundColor: '#1E1E3A',
-                  color: '#FFFFFF',
-                  borderRadius: 14,
-                  paddingHorizontal: 18,
-                  paddingVertical: 14,
-                  fontSize: 16,
-                  marginBottom: 20,
-                  borderWidth: 1,
-                  borderColor: '#2D2D4A',
-                }}
-              />
-
-              {/* Time picker */}
-              <Text style={{ color: '#9CA3AF', fontSize: 13, fontWeight: '600', marginBottom: 10, letterSpacing: 1 }}>
-                HORA
-              </Text>
-              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 24 }}>
-                {/* Hours */}
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: '#6B7280', fontSize: 11, marginBottom: 4, textAlign: 'center' }}>Hora</Text>
-                  <View style={{ flexDirection: 'row', backgroundColor: '#1E1E3A', borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#2D2D4A' }}>
-                    <TouchableOpacity onPress={() => setHour(h => (h <= 1 ? 12 : h - 1))} style={{ padding: 12, flex: 1, alignItems: 'center' }}>
-                      <Text style={{ color: '#A78BFA', fontSize: 18 }}>−</Text>
-                    </TouchableOpacity>
-                    <Text style={{ color: '#FFFFFF', fontSize: 22, fontWeight: '800', flex: 2, textAlign: 'center', paddingVertical: 10 }}>
-                      {pad(hour)}
-                    </Text>
-                    <TouchableOpacity onPress={() => setHour(h => (h >= 12 ? 1 : h + 1))} style={{ padding: 12, flex: 1, alignItems: 'center' }}>
-                      <Text style={{ color: '#A78BFA', fontSize: 18 }}>+</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                {/* Minutes */}
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: '#6B7280', fontSize: 11, marginBottom: 4, textAlign: 'center' }}>Min</Text>
-                  <View style={{ flexDirection: 'row', backgroundColor: '#1E1E3A', borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#2D2D4A' }}>
-                    <TouchableOpacity onPress={() => setMinute(m => (m <= 0 ? 55 : m - 5))} style={{ padding: 12, flex: 1, alignItems: 'center' }}>
-                      <Text style={{ color: '#A78BFA', fontSize: 18 }}>−</Text>
-                    </TouchableOpacity>
-                    <Text style={{ color: '#FFFFFF', fontSize: 22, fontWeight: '800', flex: 2, textAlign: 'center', paddingVertical: 10 }}>
-                      {pad(minute)}
-                    </Text>
-                    <TouchableOpacity onPress={() => setMinute(m => (m >= 55 ? 0 : m + 5))} style={{ padding: 12, flex: 1, alignItems: 'center' }}>
-                      <Text style={{ color: '#A78BFA', fontSize: 18 }}>+</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                {/* AM/PM */}
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: '#6B7280', fontSize: 11, marginBottom: 4, textAlign: 'center' }}>AM/PM</Text>
-                  <TouchableOpacity
-                    onPress={() => setAmPm(a => (a === 'AM' ? 'PM' : 'AM'))}
-                    style={{
-                      backgroundColor: '#7C3AED',
-                      borderRadius: 12,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      paddingVertical: 14,
-                      borderWidth: 1,
-                      borderColor: '#A78BFA',
-                    }}
-                  >
-                    <Text style={{ color: '#FFFFFF', fontSize: 20, fontWeight: '800' }}>{ampm}</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* Preview */}
-              <Text style={{ color: '#A78BFA', fontSize: 36, fontWeight: '900', textAlign: 'center', marginBottom: 24 }}>
-                {pad(hour)}:{pad(minute)} {ampm}
-              </Text>
-
-              {/* Confirm */}
-              <TouchableOpacity
-                onPress={addReminder}
-                style={{
-                  backgroundColor: '#7C3AED',
-                  borderRadius: 16,
-                  paddingVertical: 16,
-                  alignItems: 'center',
-                }}
-              >
-                <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: '800' }}>
-                  Guardar Recordatorio
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
-
-      {/* ── ALARM OVERLAY — visible while ringing ── */}
-      <Modal visible={!!ringingReminder} transparent animationType="fade">
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: '#0F0A1A',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 32,
-          }}
-        >
-          {/* Pulsing ring — simple animated text emoji */}
-          <Text style={{ fontSize: 96, marginBottom: 24 }}>🔔</Text>
-
-          <Text style={{ color: '#A78BFA', fontSize: 14, fontWeight: '600', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 }}>
-            Recordatorio
-          </Text>
-          <Text style={{ color: '#FFFFFF', fontSize: 32, fontWeight: '900', textAlign: 'center', marginBottom: 8 }}>
-            {ringingReminder?.title}
-          </Text>
-          <Text style={{ color: '#7C3AED', fontSize: 52, fontWeight: '900', marginBottom: 48 }}>
-            {ringingReminder ? formatTime(ringingReminder.hour, ringingReminder.minute) : ''}
-          </Text>
-
+      <View style={{ position: 'absolute', bottom: 32, right: 22, zIndex: 100 }}>
+        <Animated.View style={fabStyle}>
           <TouchableOpacity
-            onPress={dismissAlarm}
+            onPress={() => setShowModal(true)}
+            activeOpacity={0.85}
             style={{
+              width: 64,
+              height: 64,
+              borderRadius: 32,
               backgroundColor: '#7C3AED',
-              borderRadius: 100,
-              paddingVertical: 22,
-              paddingHorizontal: 64,
+              alignItems: 'center',
+              justifyContent: 'center',
               shadowColor: '#7C3AED',
-              shadowOffset: { width: 0, height: 12 },
-              shadowOpacity: 0.6,
-              shadowRadius: 24,
-              elevation: 16,
+              shadowOffset: { width: 0, height: 6 },
+              shadowOpacity: 0.5,
+              shadowRadius: 10,
+              elevation: 8,
             }}
           >
-            <Text style={{ color: '#FFFFFF', fontSize: 22, fontWeight: '900', letterSpacing: 0.5 }}>
-              ¡Ya lo sé! Apagar
-            </Text>
+            <Ionicons name="add" size={34} color="#FFFFFF" />
           </TouchableOpacity>
-        </View>
-      </Modal>
+        </Animated.View>
+      </View>
+
+      {/* ── Add Modal ── */}
+      <AddReminderModal
+        visible={showModal}
+        onClose={() => setShowModal(false)}
+        onSave={(params) => {
+          addReminder(params);
+          setShowModal(false);
+        }}
+      />
+
+      {/* ── Alarm Overlay ── */}
+      <AlarmOverlay
+        reminder={ringingReminder}
+        onDismiss={dismissAlarm}
+        onSnooze={() => ringingReminder && snoozeReminder(ringingReminder.id)}
+      />
     </SafeAreaView>
   );
 }
