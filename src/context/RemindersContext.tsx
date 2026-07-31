@@ -1,4 +1,10 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import {
+  cancelReminderNotification,
+  rescheduleAllReminders,
+  scheduleReminderNotification,
+} from '@/utils/notifications';
 
 // ─── Reminder type (extended) ─────────────────────────────────────────────────
 export type RepeatMode = 'none' | 'daily' | 'weekly' | 'monthly';
@@ -94,14 +100,54 @@ function shouldRing(r: Reminder, h: number, m: number, today: string): boolean {
   }
 }
 
+// ─── Persistence key ─────────────────────────────────────────────────────────
+const STORAGE_KEY = '@recordis/reminders';
+
+async function loadReminders(): Promise<Reminder[]> {
+  try {
+    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed: Reminder[] = JSON.parse(raw);
+    // Reset ringing state on load (app was killed/restarted)
+    return parsed.map((r) => ({ ...r, ringing: false }));
+  } catch {
+    return [];
+  }
+}
+
+async function saveReminders(reminders: Reminder[]): Promise<void> {
+  try {
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(reminders));
+  } catch (e) {
+    console.warn('[RemindersContext] saveReminders error:', e);
+  }
+}
+
 // ─── Context ─────────────────────────────────────────────────────────────────
 const RemindersContext = createContext<RemindersContextValue | null>(null);
 
 export function RemindersProvider({ children }: { children: React.ReactNode }) {
   const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Tick every 10 s — check for due reminders
+  // Load persisted reminders on mount
+  useEffect(() => {
+    loadReminders().then((loaded) => {
+      setReminders(loaded);
+      setLoaded(true);
+      // Reschedule all OS-level notifications (in case app was killed)
+      rescheduleAllReminders(loaded);
+    });
+  }, []);
+
+  // Persist reminders whenever they change (after initial load)
+  useEffect(() => {
+    if (!loaded) return;
+    saveReminders(reminders);
+  }, [reminders, loaded]);
+
+  // Tick every 10 s — check for due reminders (in-app alarm overlay)
   useEffect(() => {
     tickRef.current = setInterval(() => {
       const now = new Date();
@@ -118,15 +164,15 @@ export function RemindersProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   function addReminder(params: NewReminderParams) {
-    setReminders((prev) => [
-      ...prev,
-      {
-        id: uid(),
-        active: true,
-        ringing: false,
-        ...params,
-      },
-    ]);
+    const newReminder: Reminder = {
+      id: uid(),
+      active: true,
+      ringing: false,
+      ...params,
+    };
+    setReminders((prev) => [...prev, newReminder]);
+    // Schedule OS notification
+    scheduleReminderNotification(newReminder);
   }
 
   function addMedicationReminders(params: NewMedicationParams) {
@@ -178,15 +224,27 @@ export function RemindersProvider({ children }: { children: React.ReactNode }) {
     }
 
     setReminders((prev) => [...prev, ...newReminders]);
+    // Schedule OS notifications for each dose
+    newReminders.forEach((r) => scheduleReminderNotification(r));
   }
 
   function deleteReminder(id: string) {
+    cancelReminderNotification(id);
     setReminders((prev) => prev.filter((r) => r.id !== id));
   }
 
   function toggleReminder(id: string) {
     setReminders((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, active: !r.active, ringing: false } : r))
+      prev.map((r) => {
+        if (r.id !== id) return r;
+        const updated = { ...r, active: !r.active, ringing: false };
+        if (updated.active) {
+          scheduleReminderNotification(updated);
+        } else {
+          cancelReminderNotification(id);
+        }
+        return updated;
+      })
     );
   }
 
@@ -197,15 +255,18 @@ export function RemindersProvider({ children }: { children: React.ReactNode }) {
         if (r.id !== id || !r.ringing) return r;
         const future = new Date(Date.now() + r.snoozeMinutes * 60_000);
         const snoozeDate = `${future.getFullYear()}-${String(future.getMonth() + 1).padStart(2, '0')}-${String(future.getDate()).padStart(2, '0')}`;
-        return {
+        const snoozed = {
           ...r,
           ringing: false,
           active: true,
           hour: future.getHours(),
           minute: future.getMinutes(),
           date: snoozeDate,
-          repeat: 'none', // snooze is always once
+          repeat: 'none' as RepeatMode, // snooze is always once
         };
+        // Re-schedule the snoozed notification
+        scheduleReminderNotification(snoozed);
+        return snoozed;
       })
     );
   }

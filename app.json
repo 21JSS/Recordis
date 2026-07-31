@@ -14,7 +14,12 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.USE_EXACT_ALARM",
+        "android.permission.VIBRATE",
+        "android.permission.POST_NOTIFICATIONS"
       ],
       "package": "com.anonymous.Recordis"
     },
@@ -32,7 +37,16 @@
           "imageWidth": 100
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/Recordis-icon-app.png",
+          "color": "#7C3AED",
+          "defaultChannel": "recordis-alarms",
+          "sounds": []
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

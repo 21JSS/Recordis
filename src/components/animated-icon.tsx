@@ -1,6 +1,6 @@
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   runOnJS,
@@ -14,9 +14,11 @@ import { Ionicons } from '@expo/vector-icons';
 
 export function AnimatedSplashOverlay() {
   const [phase, setPhase] = useState<'idle' | 'animating' | 'done'>('idle');
+  // Track when animation fully completes so overlay stops intercepting touches
+  const [animDone, setAnimDone] = useState(false);
 
   // Shared values
-  const clockY = useSharedValue(-220); // Starts above screen
+  const clockY = useSharedValue(-220);
   const clockScale = useSharedValue(0.1);
   const clockRotate = useSharedValue(-60);
   const textOpacity = useSharedValue(0);
@@ -25,27 +27,14 @@ export function AnimatedSplashOverlay() {
   const overlayOpacity = useSharedValue(1);
 
   function startAnimation() {
-    // 1. Text "Rec  rdis" fades in
     textOpacity.value = withTiming(1, { duration: 400 });
 
-    // 2. Clock jumps down into the "O" position with spring bounce
-    clockY.value = withDelay(
-      250,
-      withSpring(0, { damping: 8, stiffness: 130 })
-    );
-    clockScale.value = withDelay(
-      250,
-      withSpring(1, { damping: 9, stiffness: 140 })
-    );
-    clockRotate.value = withDelay(
-      250,
-      withSpring(0, { damping: 10, stiffness: 150 })
-    );
+    clockY.value = withDelay(250, withSpring(0, { damping: 8, stiffness: 130 }));
+    clockScale.value = withDelay(250, withSpring(1, { damping: 9, stiffness: 140 }));
+    clockRotate.value = withDelay(250, withSpring(0, { damping: 10, stiffness: 150 }));
 
-    // 3. Subtitle "Recuerda lo importante" fades in
     subtitleOpacity.value = withDelay(800, withTiming(1, { duration: 500 }));
 
-    // 4. Zoom animation reveals the app
     zoomScale.value = withDelay(
       2200,
       withTiming(7, { duration: 700, easing: Easing.in(Easing.cubic) })
@@ -53,7 +42,10 @@ export function AnimatedSplashOverlay() {
     overlayOpacity.value = withDelay(
       2400,
       withTiming(0, { duration: 500, easing: Easing.out(Easing.ease) }, (finished) => {
-        if (finished) runOnJS(setPhase)('done');
+        if (finished) {
+          runOnJS(setAnimDone)(true);
+          runOnJS(setPhase)('done');
+        }
       })
     );
   }
@@ -66,13 +58,8 @@ export function AnimatedSplashOverlay() {
     ],
   }));
 
-  const textStyle = useAnimatedStyle(() => ({
-    opacity: textOpacity.value,
-  }));
-
-  const subtitleStyle = useAnimatedStyle(() => ({
-    opacity: subtitleOpacity.value,
-  }));
+  const textStyle = useAnimatedStyle(() => ({ opacity: textOpacity.value }));
+  const subtitleStyle = useAnimatedStyle(() => ({ opacity: subtitleOpacity.value }));
 
   const containerStyle = useAnimatedStyle(() => ({
     opacity: overlayOpacity.value,
@@ -84,6 +71,9 @@ export function AnimatedSplashOverlay() {
   return (
     <Animated.View
       style={[styles.splashOverlay, containerStyle]}
+      // CRITICAL FIX: once animation is done, this overlay must NOT intercept touches.
+      // pointerEvents='none' lets all gestures pass through to the underlying UI.
+      pointerEvents={animDone ? 'none' : 'auto'}
       onLayout={() => {
         SplashScreen.hideAsync().finally(() => {
           setPhase('animating');
@@ -91,12 +81,10 @@ export function AnimatedSplashOverlay() {
         });
       }}
     >
-      {/* Title "Rec [Clock] rdis" */}
       <View style={{ alignItems: 'center', justifyContent: 'center' }}>
         <Animated.View style={[{ flexDirection: 'row', alignItems: 'center' }, textStyle]}>
           <Text style={styles.titleText}>Rec</Text>
 
-          {/* Vector Clock jumping into O position */}
           <View style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginHorizontal: 1 }}>
             <Animated.View style={clockStyle}>
               <Ionicons name="time" size={42} color="#A78BFA" />
@@ -106,7 +94,6 @@ export function AnimatedSplashOverlay() {
           <Text style={styles.titleText}>rdis</Text>
         </Animated.View>
 
-        {/* Subtitle */}
         <Animated.View style={[{ marginTop: 14 }, subtitleStyle]}>
           <Text style={styles.tagline}>Recuerda lo importante</Text>
         </Animated.View>
@@ -130,6 +117,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 9999,
+    // CRITICAL FIX: elevation only applies on Android; without this
+    // on RN the view intercepts touches even when transparent
+    elevation: Platform.OS === 'android' ? 999 : 0,
   },
   titleText: {
     fontSize: 50,
