@@ -1,7 +1,8 @@
 /**
  * SimpleModeModal.tsx
  * A beautiful, minimal reminder creation modal.
- * Only requires: name, time (hour/minute/AM-PM), and date.
+ * Only requires: name, time (hour/minute/AM-PM), date, and category.
+ * V4: Larger text, bigger buttons, category selector for accessibility.
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -11,13 +12,14 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
+  ScrollView,
   StyleSheet,
-  Pressable,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import Animated, {
   FadeIn,
   FadeInDown,
@@ -26,10 +28,12 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 
 import type { NewReminderParams } from '@/context/RemindersContext';
 import { REMINDER_COLORS } from '@/constants/reminderOptions';
-import { pad, todayISO, buildCalendarCells, DAY_NAMES_SHORT, MONTH_NAMES, dateISO } from '@/utils/helpers';
+import { CATEGORIES, type Category } from '@/constants/categories';
+import { pad, todayISO } from '@/utils/helpers';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -59,6 +63,14 @@ function addDays(days: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// ─── Smart Suggestions ───────────────────────────────────────────────────────
+function getSmartSuggestions(): string[] {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 12) return ['Medicina AM', 'Desayunar', 'Llamar médico'];
+  if (h >= 12 && h < 18) return ['Beber agua', 'Almorzar', 'Pasear perro'];
+  return ['Medicina PM', 'Cenar', 'Leer libro'];
+}
+
 // ─── AM/PM Drum Toggle ───────────────────────────────────────────────────────
 function AmPmToggle({ value, onChange }: { value: 'AM' | 'PM'; onChange: (v: 'AM' | 'PM') => void }) {
   const scale = useSharedValue(1);
@@ -66,6 +78,7 @@ function AmPmToggle({ value, onChange }: { value: 'AM' | 'PM'; onChange: (v: 'AM
 
   function handlePress() {
     scale.value = withSpring(0.9, { damping: 6 }, () => { scale.value = withSpring(1); });
+    Haptics.selectionAsync();
     onChange(value === 'AM' ? 'PM' : 'AM');
   }
 
@@ -105,7 +118,7 @@ function BigStepper({
   return (
     <View style={{ alignItems: 'center', gap: 6 }}>
       <TouchableOpacity
-        onPress={() => onChange(value >= max ? min : value + 1)}
+        onPress={() => { Haptics.selectionAsync(); onChange(value >= max ? min : value + 1); }}
         style={{ padding: 10, backgroundColor: '#12122A', borderRadius: 14 }}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
@@ -120,7 +133,7 @@ function BigStepper({
       </Text>
 
       <TouchableOpacity
-        onPress={() => onChange(value <= min ? max : value - 1)}
+        onPress={() => { Haptics.selectionAsync(); onChange(value <= min ? max : value - 1); }}
         style={{ padding: 10, backgroundColor: '#12122A', borderRadius: 14 }}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
@@ -143,9 +156,10 @@ export function SimpleModeModal({ visible, onClose, onSave }: SimpleModeModalPro
   const [minute, setMinute] = useState(0);
   const [ampm, setAmPm] = useState<'AM' | 'PM'>('AM');
   const [date, setDate] = useState(todayISO());
+  const [category, setCategory] = useState<Category>('personal');
 
   function reset() {
-    setTitle(''); setHour(8); setMinute(0); setAmPm('AM'); setDate(todayISO());
+    setTitle(''); setHour(8); setMinute(0); setAmPm('AM'); setDate(todayISO()); setCategory('personal');
   }
 
   function handleClose() { reset(); onClose(); }
@@ -154,6 +168,7 @@ export function SimpleModeModal({ visible, onClose, onSave }: SimpleModeModalPro
     const trimmed = title.trim();
     if (!trimmed) return;
     const realHour = ampm === 'PM' && hour !== 12 ? hour + 12 : ampm === 'AM' && hour === 12 ? 0 : hour;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     onSave({
       title: trimmed,
       hour: realHour,
@@ -164,11 +179,13 @@ export function SimpleModeModal({ visible, onClose, onSave }: SimpleModeModalPro
       priority: 'medium',
       notes: '',
       snoozeMinutes: 10,
+      category,
     });
     reset();
   }
 
   const canSave = title.trim().length > 0;
+  const suggestions = getSmartSuggestions();
 
   return (
     <Modal visible={visible} transparent animationType="slide" statusBarTranslucent>
@@ -182,14 +199,18 @@ export function SimpleModeModal({ visible, onClose, onSave }: SimpleModeModalPro
           <Animated.View
               entering={FadeInUp.duration(400).springify()}
               style={{
-                backgroundColor: '#09091E',
+                backgroundColor: 'rgba(9, 9, 30, 0.65)',
                 borderTopLeftRadius: 36,
                 borderTopRightRadius: 36,
                 borderTopWidth: 1.5,
-                borderColor: '#2A1A50',
+                borderColor: 'rgba(255, 255, 255, 0.1)',
+                maxHeight: '90%',
+                overflow: 'hidden',
                 paddingBottom: Platform.OS === 'ios' ? 40 : 24,
               }}
             >
+              <BlurView intensity={75} tint="dark" style={StyleSheet.absoluteFill} />
+
               {/* Drag Handle */}
               <View style={{ alignItems: 'center', paddingTop: 14, paddingBottom: 8 }}>
                 <View style={{ width: 42, height: 4, borderRadius: 2, backgroundColor: '#2A1A50' }} />
@@ -237,12 +258,17 @@ export function SimpleModeModal({ visible, onClose, onSave }: SimpleModeModalPro
                 </TouchableOpacity>
               </Animated.View>
 
-              {/* ── Name Input ── */}
-              <Animated.View
-                entering={FadeInDown.delay(130).springify()}
-                style={{ paddingHorizontal: 24, marginBottom: 24 }}
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={{ paddingBottom: 20 }}
               >
-                <Text style={{ color: '#6B7280', fontSize: 11, fontWeight: '700', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 10 }}>
+                {/* ── Name Input ── */}
+                <Animated.View
+                  entering={FadeInDown.delay(130).springify()}
+                  style={{ paddingHorizontal: 24, marginBottom: 24 }}
+                >
+                <Text style={{ color: '#6B7280', fontSize: 12, fontWeight: '700', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 10 }}>
                   ¿Qué necesitas recordar?
                 </Text>
                 <TextInput
@@ -253,32 +279,84 @@ export function SimpleModeModal({ visible, onClose, onSave }: SimpleModeModalPro
                   autoFocus={false}
                   returnKeyType="done"
                   style={{
-                    backgroundColor: '#0D0D22',
+                    backgroundColor: 'rgba(13, 13, 34, 0.6)',
                     color: '#FFF',
                     borderRadius: 20,
                     paddingHorizontal: 22,
-                    paddingVertical: 18,
-                    fontSize: 18,
+                    paddingVertical: 20,
+                    fontSize: 20,
                     fontWeight: '600',
                     borderWidth: 1.5,
-                    borderColor: title.length > 0 ? '#7C3AED' : '#1A1A35',
+                    borderColor: title.length > 0 ? '#7C3AED' : 'rgba(26, 26, 53, 0.5)',
                   }}
                 />
+
+                {/* Smart Suggestions Chips */}
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+                  {suggestions.map((s) => (
+                    <TouchableOpacity
+                      key={s}
+                      onPress={() => { Haptics.selectionAsync(); setTitle(s); }}
+                      style={{
+                        backgroundColor: 'rgba(124, 58, 237, 0.15)',
+                        paddingHorizontal: 14,
+                        paddingVertical: 8,
+                        borderRadius: 14,
+                        borderWidth: 1,
+                        borderColor: 'rgba(124, 58, 237, 0.3)',
+                      }}
+                    >
+                      <Text style={{ color: '#C084FC', fontSize: 13, fontWeight: '700' }}>
+                        {s}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </Animated.View>
+
+              {/* ── Category Selector ── */}
+              <Animated.View
+                entering={FadeInDown.delay(160).springify()}
+                style={{ paddingHorizontal: 24, marginBottom: 22 }}
+              >
+                <Text style={{ color: '#6B7280', fontSize: 12, fontWeight: '700', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 }}>
+                  Categoría
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {CATEGORIES.map((c) => {
+                    const sel = c.value === category;
+                    return (
+                      <TouchableOpacity
+                        key={c.value}
+                        onPress={() => { Haptics.selectionAsync(); setCategory(c.value); }}
+                        style={{
+                          flexDirection: 'row', alignItems: 'center', gap: 8,
+                          paddingHorizontal: 16, paddingVertical: 12, borderRadius: 100,
+                          backgroundColor: sel ? `${c.color}33` : 'rgba(13, 13, 34, 0.6)',
+                          borderWidth: 1.5, borderColor: sel ? c.color : 'rgba(26, 26, 53, 0.5)',
+                        }}
+                      >
+                        <Ionicons name={c.icon as any} size={16} color={sel ? c.color : '#4B5563'} />
+                        <Text style={{ color: sel ? c.color : '#4B5563', fontSize: 15, fontWeight: '700' }}>{c.label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               </Animated.View>
 
               {/* ── Time Selector ── */}
               <Animated.View
-                entering={FadeInDown.delay(180).springify()}
+                entering={FadeInDown.delay(190).springify()}
                 style={{ paddingHorizontal: 24, marginBottom: 22 }}
               >
-                <Text style={{ color: '#6B7280', fontSize: 11, fontWeight: '700', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 14 }}>
+                <Text style={{ color: '#6B7280', fontSize: 12, fontWeight: '700', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 14 }}>
                   ¿A qué hora?
                 </Text>
 
                 <View style={{
-                  backgroundColor: '#0D0D22', borderRadius: 24,
+                  backgroundColor: 'rgba(13, 13, 34, 0.6)', borderRadius: 24,
                   paddingVertical: 18, paddingHorizontal: 16,
-                  borderWidth: 1.5, borderColor: '#1A1A35',
+                  borderWidth: 1.5, borderColor: 'rgba(26, 26, 53, 0.5)',
                   flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16,
                 }}>
                   <BigStepper value={hour} min={1} max={12} onChange={setHour} />
@@ -296,7 +374,7 @@ export function SimpleModeModal({ visible, onClose, onSave }: SimpleModeModalPro
                 entering={FadeInDown.delay(230).springify()}
                 style={{ paddingHorizontal: 24, marginBottom: 28 }}
               >
-                <Text style={{ color: '#6B7280', fontSize: 11, fontWeight: '700', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 }}>
+                <Text style={{ color: '#6B7280', fontSize: 12, fontWeight: '700', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 }}>
                   ¿Cuándo?
                 </Text>
 
@@ -308,16 +386,16 @@ export function SimpleModeModal({ visible, onClose, onSave }: SimpleModeModalPro
                     return (
                       <TouchableOpacity
                         key={qd.label}
-                        onPress={() => setDate(qDate)}
+                        onPress={() => { Haptics.selectionAsync(); setDate(qDate); }}
                         style={{
-                          paddingHorizontal: 18, paddingVertical: 10,
+                          paddingHorizontal: 20, paddingVertical: 12,
                           borderRadius: 100,
-                          backgroundColor: isSelected ? '#7C3AED22' : '#0D0D22',
+                          backgroundColor: isSelected ? 'rgba(124, 58, 237, 0.3)' : 'rgba(13, 13, 34, 0.6)',
                           borderWidth: 1.5,
-                          borderColor: isSelected ? '#7C3AED' : '#1A1A35',
+                          borderColor: isSelected ? '#7C3AED' : 'rgba(26, 26, 53, 0.5)',
                         }}
                       >
-                        <Text style={{ color: isSelected ? '#A78BFA' : '#6B7280', fontSize: 14, fontWeight: '700' }}>
+                        <Text style={{ color: isSelected ? '#A78BFA' : '#6B7280', fontSize: 15, fontWeight: '700' }}>
                           {qd.label}
                         </Text>
                       </TouchableOpacity>
@@ -333,16 +411,16 @@ export function SimpleModeModal({ visible, onClose, onSave }: SimpleModeModalPro
                     return (
                       <TouchableOpacity
                         key={qd.label}
-                        onPress={() => setDate(qDate)}
+                        onPress={() => { Haptics.selectionAsync(); setDate(qDate); }}
                         style={{
-                          flex: 1, paddingVertical: 10,
+                          flex: 1, paddingVertical: 12,
                           borderRadius: 14, alignItems: 'center',
-                          backgroundColor: isSelected ? '#7C3AED22' : '#0D0D22',
+                          backgroundColor: isSelected ? 'rgba(124, 58, 237, 0.3)' : 'rgba(13, 13, 34, 0.6)',
                           borderWidth: 1.5,
-                          borderColor: isSelected ? '#7C3AED' : '#1A1A35',
+                          borderColor: isSelected ? '#7C3AED' : 'rgba(26, 26, 53, 0.5)',
                         }}
                       >
-                        <Text style={{ color: isSelected ? '#A78BFA' : '#4B5563', fontSize: 12, fontWeight: '700' }}>
+                        <Text style={{ color: isSelected ? '#A78BFA' : '#4B5563', fontSize: 13, fontWeight: '700' }}>
                           {qd.label}
                         </Text>
                       </TouchableOpacity>
@@ -352,16 +430,16 @@ export function SimpleModeModal({ visible, onClose, onSave }: SimpleModeModalPro
 
                 {/* Selected date display */}
                 <View style={{
-                  marginTop: 12, backgroundColor: '#0D0D22', borderRadius: 14,
-                  paddingVertical: 10, paddingHorizontal: 16,
+                  marginTop: 12, backgroundColor: 'rgba(13, 13, 34, 0.6)', borderRadius: 14,
+                  paddingVertical: 12, paddingHorizontal: 16,
                   flexDirection: 'row', alignItems: 'center', gap: 8,
-                  borderWidth: 1, borderColor: '#1A1A35',
+                  borderWidth: 1, borderColor: 'rgba(26, 26, 53, 0.5)',
                 }}>
                   <Ionicons name="calendar-outline" size={16} color="#4B5563" />
-                  <Text style={{ color: '#9CA3AF', fontSize: 14, fontWeight: '600' }}>
+                  <Text style={{ color: '#9CA3AF', fontSize: 15, fontWeight: '600' }}>
                     {date}
                   </Text>
-                  <Text style={{ color: `${pad(hour)}` === '' ? 'transparent' : '#A78BFA', fontSize: 14, fontWeight: '700', marginLeft: 'auto' }}>
+                  <Text style={{ color: '#A78BFA', fontSize: 15, fontWeight: '700', marginLeft: 'auto' }}>
                     {pad(hour)}:{pad(minute)} {ampm}
                   </Text>
                 </View>
@@ -376,7 +454,7 @@ export function SimpleModeModal({ visible, onClose, onSave }: SimpleModeModalPro
                   style={{
                     backgroundColor: canSave ? '#7C3AED' : '#1A1A35',
                     borderRadius: 22,
-                    paddingVertical: 20,
+                    paddingVertical: 22,
                     alignItems: 'center',
                     flexDirection: 'row',
                     justifyContent: 'center',
@@ -388,15 +466,16 @@ export function SimpleModeModal({ visible, onClose, onSave }: SimpleModeModalPro
                     elevation: canSave ? 14 : 0,
                   }}
                 >
-                  <Ionicons name="flash" size={24} color={canSave ? '#FFF' : '#374151'} />
-                  <Text style={{ color: canSave ? '#FFF' : '#374151', fontSize: 18, fontWeight: '900', letterSpacing: 0.5 }}>
+                  <Ionicons name="flash" size={26} color={canSave ? '#FFF' : '#374151'} />
+                  <Text style={{ color: canSave ? '#FFF' : '#374151', fontSize: 19, fontWeight: '900', letterSpacing: 0.5 }}>
                     Guardar Recordatorio
                   </Text>
                 </TouchableOpacity>
+              </Animated.View>
+              </ScrollView>
             </Animated.View>
-          </Animated.View>
-        </View>
-      </KeyboardAvoidingView>
+          </View>
+        </KeyboardAvoidingView>
     </Modal>
   );
 }

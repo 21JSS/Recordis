@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -17,6 +17,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 
 import { useReminders, type NewReminderParams, type Priority, type RepeatMode } from '@/context/RemindersContext';
 import { pad, todayISO, buildCalendarCells, DAY_NAMES_SHORT, MONTH_NAMES, dateISO } from '@/utils/helpers';
@@ -28,6 +29,7 @@ import {
   MEDICATION_INTERVALS,
   MEDICATION_DURATIONS,
 } from '@/constants/reminderOptions';
+import { CATEGORIES, type Category } from '@/constants/categories';
 
 // ─── Section header ───────────────────────────────────────────────────────────
 function SectionLabel({ icon, title, color = '#7C3AED' }: { icon: string; title: string; color?: string }) {
@@ -223,6 +225,7 @@ export function AddReminderModal({ visible, onClose, onSave }: AddReminderModalP
   const [priority, setPriority] = useState<Priority>('medium');
   const [notes, setNotes]       = useState('');
   const [snooze, setSnooze]     = useState(10);
+  const [category, setCategory] = useState<Category>('personal');
   const [medicationName, setMedicationName] = useState('');
   const [dosage, setDosage]                 = useState('');
   const [intervalHours, setIntervalHours]   = useState(8);
@@ -233,6 +236,7 @@ export function AddReminderModal({ visible, onClose, onSave }: AddReminderModalP
     setTitle(''); setHour(8); setMinute(0); setAmPm('AM');
     setDate(todayISO()); setColor(REMINDER_COLORS[0].hex);
     setRepeat('none'); setPriority('medium'); setNotes(''); setSnooze(10);
+    setCategory('personal');
     setMedicationName(''); setDosage(''); setIntervalHours(8); setDurationDays(5);
   }
 
@@ -246,7 +250,8 @@ export function AddReminderModal({ visible, onClose, onSave }: AddReminderModalP
     }
     const trimmed = title.trim();
     if (!trimmed) return;
-    onSave({ title: trimmed, hour: realHour, minute, date, color, repeat, priority, notes: notes.trim(), snoozeMinutes: snooze });
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    onSave({ title: trimmed, hour: realHour, minute, date, color, repeat, priority, notes: notes.trim(), snoozeMinutes: snooze, category });
     reset();
   }
 
@@ -460,6 +465,30 @@ export function AddReminderModal({ visible, onClose, onSave }: AddReminderModalP
                   </Animated.View>
 
                   <Animated.View entering={FadeInDown.delay(200).springify()}>
+                    <SectionLabel icon="pricetag-outline" title="Categoría" />
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                      {CATEGORIES.map((c) => {
+                        const sel = c.value === category;
+                        return (
+                          <TouchableOpacity
+                            key={c.value}
+                            onPress={() => { Haptics.selectionAsync(); setCategory(c.value); }}
+                            style={{
+                              flexDirection: 'row', alignItems: 'center', gap: 6,
+                              paddingHorizontal: 14, paddingVertical: 9, borderRadius: 100,
+                              backgroundColor: sel ? `${c.color}22` : '#0C0C20',
+                              borderWidth: 1.5, borderColor: sel ? c.color : '#1A1A35',
+                            }}
+                          >
+                            <Ionicons name={c.icon as any} size={14} color={sel ? c.color : '#4B5563'} />
+                            <Text style={{ color: sel ? c.color : '#4B5563', fontSize: 13, fontWeight: '700' }}>{c.label}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </Animated.View>
+
+                  <Animated.View entering={FadeInDown.delay(220).springify()}>
                     <SectionLabel icon="color-palette-outline" title="Color" />
                     <ColorPicker value={color} onChange={setColor} />
                   </Animated.View>

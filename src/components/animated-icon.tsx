@@ -7,7 +7,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withDelay,
-  withSpring,
+  withSequence,
   withTiming,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,29 +18,51 @@ export function AnimatedSplashOverlay() {
   const [animDone, setAnimDone] = useState(false);
 
   // Shared values
-  const clockY = useSharedValue(-220);
-  const clockScale = useSharedValue(0.1);
-  const clockRotate = useSharedValue(-60);
+  const clockScale = useSharedValue(0.3);
+  const clockOpacity = useSharedValue(0);
+  const clockRotate = useSharedValue(0);       // smooth rotation, NOT bounce
+  const glowOpacity = useSharedValue(0);
   const textOpacity = useSharedValue(0);
   const subtitleOpacity = useSharedValue(0);
   const zoomScale = useSharedValue(1);
   const overlayOpacity = useSharedValue(1);
 
   function startAnimation() {
-    textOpacity.value = withTiming(1, { duration: 400 });
+    // 1. Fade in title text smoothly
+    textOpacity.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.ease) });
 
-    clockY.value = withDelay(250, withSpring(0, { damping: 8, stiffness: 130 }));
-    clockScale.value = withDelay(250, withSpring(1, { damping: 9, stiffness: 140 }));
-    clockRotate.value = withDelay(250, withSpring(0, { damping: 10, stiffness: 150 }));
+    // 2. Clock appears: smooth scale (NO spring/bounce) + fade-in
+    clockOpacity.value = withDelay(200,
+      withTiming(1, { duration: 600, easing: Easing.out(Easing.ease) })
+    );
+    clockScale.value = withDelay(200,
+      withTiming(1, { duration: 800, easing: Easing.out(Easing.cubic) })
+    );
 
-    subtitleOpacity.value = withDelay(800, withTiming(1, { duration: 500 }));
+    // 3. Clock hands rotate — smooth 360° spin (like a clock ticking forward)
+    clockRotate.value = withDelay(300,
+      withTiming(360, { duration: 1400, easing: Easing.inOut(Easing.cubic) })
+    );
 
+    // 4. Glow pulse around clock
+    glowOpacity.value = withDelay(400,
+      withSequence(
+        withTiming(0.8, { duration: 500, easing: Easing.out(Easing.ease) }),
+        withTiming(0.3, { duration: 400, easing: Easing.in(Easing.ease) }),
+        withTiming(0.6, { duration: 300, easing: Easing.out(Easing.ease) }),
+      )
+    );
+
+    // 5. Subtitle fades in
+    subtitleOpacity.value = withDelay(900, withTiming(1, { duration: 500 }));
+
+    // 6. PRONOUNCED zoom out — scale to 14 (bigger = more immersive "entering" feel)
     zoomScale.value = withDelay(
       2200,
-      withTiming(7, { duration: 700, easing: Easing.in(Easing.cubic) })
+      withTiming(14, { duration: 800, easing: Easing.in(Easing.cubic) })
     );
     overlayOpacity.value = withDelay(
-      2400,
+      2500,
       withTiming(0, { duration: 500, easing: Easing.out(Easing.ease) }, (finished) => {
         if (finished) {
           runOnJS(setAnimDone)(true);
@@ -51,11 +73,15 @@ export function AnimatedSplashOverlay() {
   }
 
   const clockStyle = useAnimatedStyle(() => ({
+    opacity: clockOpacity.value,
     transform: [
-      { translateY: clockY.value },
       { scale: clockScale.value },
       { rotate: `${clockRotate.value}deg` },
     ],
+  }));
+
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: glowOpacity.value,
   }));
 
   const textStyle = useAnimatedStyle(() => ({ opacity: textOpacity.value }));
@@ -85,16 +111,29 @@ export function AnimatedSplashOverlay() {
         <Animated.View style={[{ flexDirection: 'row', alignItems: 'center' }, textStyle]}>
           <Text style={styles.titleText}>Rec</Text>
 
-          <View style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginHorizontal: 1 }}>
+          <View style={{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center', marginHorizontal: 2 }}>
+            {/* Glow ring behind the clock */}
+            <Animated.View
+              style={[
+                {
+                  position: 'absolute',
+                  width: 72,
+                  height: 72,
+                  borderRadius: 36,
+                  backgroundColor: '#A78BFA',
+                },
+                glowStyle,
+              ]}
+            />
             <Animated.View style={clockStyle}>
-              <Ionicons name="time" size={42} color="#A78BFA" />
+              <Ionicons name="time" size={44} color="#A78BFA" />
             </Animated.View>
           </View>
 
           <Text style={styles.titleText}>rdis</Text>
         </Animated.View>
 
-        <Animated.View style={[{ marginTop: 14 }, subtitleStyle]}>
+        <Animated.View style={[{ marginTop: 16 }, subtitleStyle]}>
           <Text style={styles.tagline}>Recuerda lo importante</Text>
         </Animated.View>
       </View>

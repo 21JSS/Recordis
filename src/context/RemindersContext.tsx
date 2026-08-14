@@ -5,10 +5,18 @@ import {
   rescheduleAllReminders,
   scheduleReminderNotification,
 } from '@/utils/notifications';
+import type { Category } from '@/constants/categories';
 
-// ─── Reminder type (extended) ─────────────────────────────────────────────────
+// ─── Reminder type (extended for V4) ──────────────────────────────────────────
 export type RepeatMode = 'none' | 'daily' | 'weekly' | 'monthly';
 export type Priority   = 'low' | 'medium' | 'high';
+
+export interface LocationTrigger {
+  latitude: number;
+  longitude: number;
+  radius: number;   // meters
+  name: string;     // friendly name like "Supermercado"
+}
 
 export interface Reminder {
   id: string;
@@ -18,17 +26,23 @@ export interface Reminder {
   active: boolean;
   ringing: boolean;
   date: string;    // YYYY-MM-DD — primary trigger date
-  // ── New fields ──
+  // ── Extended fields ──
   color: string;           // accent hex color chosen by user
   repeat: RepeatMode;      // recurrence
   priority: Priority;      // importance level
   notes: string;           // optional extra description
   snoozeMinutes: number;   // snooze duration in minutes
+  // ── Category ──
+  category: Category;      // personal, trabajo, salud, escuela, otro
+  // ── Completed ──
+  completedAt?: string;    // ISO timestamp when completed
   // ── Medication fields ──
   isMedication?: boolean;
   medicationName?: string;
   dosage?: string;
   intervalHours?: number;
+  // ── Location trigger ──
+  locationTrigger?: LocationTrigger;
 }
 
 export interface NewReminderParams {
@@ -41,6 +55,8 @@ export interface NewReminderParams {
   priority: Priority;
   notes: string;
   snoozeMinutes: number;
+  category: Category;
+  locationTrigger?: LocationTrigger;
 }
 
 export interface NewMedicationParams {
@@ -58,16 +74,20 @@ export interface RemindersContextValue {
   reminders: Reminder[];
   addReminder: (params: NewReminderParams) => void;
   addMedicationReminders: (params: NewMedicationParams) => void;
+  editReminder: (id: string, params: Partial<NewReminderParams>) => void;
   deleteReminder: (id: string) => void;
   toggleReminder: (id: string) => void;
+  completeReminder: (id: string) => void;
   snoozeReminder: (id: string) => void;
   dismissAlarm: () => void;
   ringingReminder: Reminder | undefined;
+  exportReminders: () => string;
+  importReminders: (json: string) => boolean;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function uid() {
-  return Math.random().toString(36).slice(2);
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
 export function todayISO() {
@@ -77,7 +97,7 @@ export function todayISO() {
 
 /** Given a reminder, determine if it should ring right now */
 function shouldRing(r: Reminder, h: number, m: number, today: string): boolean {
-  if (!r.active || r.ringing) return false;
+  if (!r.active || r.ringing || r.completedAt) return false;
   if (r.hour !== h || r.minute !== m) return false;
 
   switch (r.repeat) {
@@ -109,7 +129,12 @@ async function loadReminders(): Promise<Reminder[]> {
     if (!raw) return [];
     const parsed: Reminder[] = JSON.parse(raw);
     // Reset ringing state on load (app was killed/restarted)
-    return parsed.map((r) => ({ ...r, ringing: false }));
+    // Also migrate old reminders that don't have category
+    return parsed.map((r) => ({
+      ...r,
+      ringing: false,
+      category: r.category || 'personal',
+    }));
   } catch {
     return [];
   }
@@ -175,6 +200,20 @@ export function RemindersProvider({ children }: { children: React.ReactNode }) {
     scheduleReminderNotification(newReminder);
   }
 
+  function editReminder(id: string, params: Partial<NewReminderParams>) {
+    setReminders((prev) =>
+      prev.map((r) => {
+        if (r.id !== id) return r;
+        const updated = { ...r, ...params };
+        // Re-schedule notification with updated data
+        if (updated.active) {
+          scheduleReminderNotification(updated);
+        }
+        return updated;
+      })
+    );
+  }
+
   function addMedicationReminders(params: NewMedicationParams) {
     const {
       medicationName,
@@ -213,6 +252,7 @@ export function RemindersProvider({ children }: { children: React.ReactNode }) {
         priority: 'high',
         notes: dosage ? `Dosis: ${dosage} (Cada ${intervalHours}h - Toma #${doseIndex})` : `Cada ${intervalHours}h - Toma #${doseIndex}`,
         snoozeMinutes: 5,
+        category: 'salud',
         isMedication: true,
         medicationName,
         dosage,
@@ -242,6 +282,26 @@ export function RemindersProvider({ children }: { children: React.ReactNode }) {
           scheduleReminderNotification(updated);
         } else {
           cancelReminderNotification(id);
+        }
+        return updated;
+      })
+    );
+  }
+
+  function completeReminder(id: string) {
+    setReminders((prev) =>
+      prev.map((r) => {
+        if (r.id !== id) return r;
+        const isCompleting = !r.completedAt;
+        const updated = {
+          ...r,
+          completedAt: isCompleting ? new Date().toISOString() : undefined,
+          ringing: false,
+        };
+        if (isCompleting) {
+          cancelReminderNotification(id);
+        } else if (updated.active) {
+          scheduleReminderNotification(updated);
         }
         return updated;
       })
@@ -281,6 +341,32 @@ export function RemindersProvider({ children }: { children: React.ReactNode }) {
     );
   }
 
+  function exportReminders(): string {
+    return JSON.stringify({
+      version: 4,
+      exportedAt: new Date().toISOString(),
+      reminders: reminders.map((r) => ({ ...r, ringing: false })),
+    }, null, 2);
+  }
+
+  function importReminders(json: string): boolean {
+    try {
+      const data = JSON.parse(json);
+      const imported: Reminder[] = (data.reminders || data).map((r: any) => ({
+        ...r,
+        ringing: false,
+        category: r.category || 'personal',
+        id: r.id || uid(), // ensure unique IDs
+      }));
+      setReminders((prev) => [...prev, ...imported]);
+      imported.filter((r) => r.active).forEach((r) => scheduleReminderNotification(r));
+      return true;
+    } catch (e) {
+      console.warn('[RemindersContext] importReminders error:', e);
+      return false;
+    }
+  }
+
   const ringingReminder = reminders.find((r) => r.ringing);
 
   return (
@@ -289,11 +375,15 @@ export function RemindersProvider({ children }: { children: React.ReactNode }) {
         reminders,
         addReminder,
         addMedicationReminders,
+        editReminder,
         deleteReminder,
         toggleReminder,
+        completeReminder,
         snoozeReminder,
         dismissAlarm,
         ringingReminder,
+        exportReminders,
+        importReminders,
       }}
     >
       {children}

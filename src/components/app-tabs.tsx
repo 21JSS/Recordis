@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
-import { Platform } from 'react-native';
+import { Platform, useWindowDimensions, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
 import { TabBarIcon } from '@/components/icons/AppIcons';
 import type { IoniconName } from '@/components/icons/AppIcons';
 
@@ -14,47 +15,38 @@ function Icon({ name, focused }: TabIconProps) {
 }
 
 export default function AppTabs() {
+  const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
-  /**
-   * AUTOMATIC SAFE AREA DETECTION:
-   *
-   * useSafeAreaInsets() reads the actual device insets:
-   *   - Samsung / Android 3-button nav:  insets.bottom ≈ 48dp
-   *   - Android gesture navigation:      insets.bottom ≈ 0-28dp
-   *   - iPhone with home bar (Face ID):  insets.bottom ≈ 34pt
-   *   - iPhone with home button:         insets.bottom ≈ 0pt
-   *
-   * The tab bar height = fixed content height (56dp) + insets.bottom
-   * paddingBottom = insets.bottom + small visual margin (6dp)
-   *
-   * This means:
-   * - On Samsung with 3-button nav: paddingBottom ≈ 54dp, height ≈ 104dp
-   * - On gesture Android / iPhone:  paddingBottom ≈ 6-40dp, height ≈ 56-90dp
-   * - All buttons remain fully clickable above the system nav bar
-   */
-  const TAB_CONTENT_HEIGHT = 56;
-  const tabBarHeight = TAB_CONTENT_HEIGHT + insets.bottom;
-  const tabBarPaddingBottom = insets.bottom > 0 ? insets.bottom + 6 : 10;
+  // "Media Query" style scaling based on device width
+  const isTablet = width >= 768;
+  const baseHeight = isTablet ? 70 : 60;
+  
+  // Safe padding. If Android reports 0 inset, force a minimum padding to avoid overlapping the 3-button nav.
+  const paddingBottom = insets.bottom > 0 ? insets.bottom : (Platform.OS === 'android' ? 14 : 10);
+  const tabBarHeight = baseHeight + paddingBottom;
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#0A0A1C',
+          position: 'absolute', // Allows content to scroll behind the tab bar
+          backgroundColor: 'rgba(10, 10, 28, 0.4)', // Slightly tinted transparent background
           borderTopWidth: 1,
-          borderTopColor: '#1A1A30',
-          // Height automatically adapts to the device nav bar
+          borderTopColor: 'rgba(255, 255, 255, 0.05)',
+          elevation: 0, // Remove Android shadow to let blur shine
           height: tabBarHeight,
-          // Padding above the system nav bar
-          paddingBottom: tabBarPaddingBottom,
-          paddingTop: 8,
-          // Ensure the tab bar sits above the Android nav bar
-          ...(Platform.OS === 'android' && {
-            elevation: 20,
-          }),
+          paddingBottom: paddingBottom,
+          paddingTop: isTablet ? 12 : 8,
         },
+        tabBarBackground: () => (
+          <BlurView
+            tint="dark"
+            intensity={60}
+            style={StyleSheet.absoluteFill}
+          />
+        ),
         tabBarActiveTintColor: '#A78BFA',
         tabBarInactiveTintColor: '#4B5563',
         tabBarLabelStyle: {
@@ -63,8 +55,6 @@ export default function AppTabs() {
           letterSpacing: 0.4,
           marginTop: 2,
         },
-        // Let the tab bar background fill behind the navigation bar
-        tabBarBackground: undefined,
       }}
     >
       <Tabs.Screen
@@ -85,11 +75,13 @@ export default function AppTabs() {
           ),
         }}
       />
-      {/* Explicitly hide explore tab */}
       <Tabs.Screen
         name="explore"
         options={{
-          href: null,
+          title: 'Estadísticas',
+          tabBarIcon: ({ focused }) => (
+            <Icon name={focused ? 'stats-chart' : 'stats-chart-outline'} focused={focused} />
+          ),
         }}
       />
     </Tabs>

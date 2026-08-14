@@ -18,6 +18,7 @@ import {
   MONTH_NAMES,
   formatTime,
 } from '@/utils/helpers';
+import { categoryColor, categoryIcon, categoryLabel } from '@/constants/categories';
 
 // ─── Calendar Screen ──────────────────────────────────────────────────────────
 export default function CalendarScreen() {
@@ -264,82 +265,108 @@ export default function CalendarScreen() {
               </Text>
             </View>
           ) : (
-            selectedReminders.map((r, i) => (
-              <Animated.View
-                key={r.id}
-                entering={FadeInRight.delay(i * 80).springify().damping(16)}
-                style={{
-                  backgroundColor: '#111128',
-                  borderRadius: 18,
-                  padding: 16,
-                  marginBottom: 12,
-                  borderWidth: 1.5,
-                  borderColor: '#2D1F5E',
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                }}
-              >
-                {/* Time pill */}
-                <View
+            selectedReminders.map((r, i) => {
+              const isCompleted = !!r.completedAt;
+              const catColor = categoryColor(r.category || 'personal');
+              const catIconName = categoryIcon(r.category || 'personal');
+              const catLbl = categoryLabel(r.category || 'personal');
+
+              return (
+                <Animated.View
+                  key={r.id}
+                  entering={FadeInDown.delay(i * 50).duration(400)}
                   style={{
-                    backgroundColor: '#160D35',
-                    borderRadius: 12,
-                    paddingHorizontal: 12,
-                    paddingVertical: 8,
-                    marginRight: 14,
-                    borderWidth: 1,
-                    borderColor: '#3B1A6B',
+                    backgroundColor: isCompleted ? '#0A0F0A' : '#111128',
+                    borderRadius: 18,
+                    padding: 16,
+                    marginBottom: 12,
+                    borderWidth: 1.5,
+                    borderColor: isCompleted ? '#1A3A1A' : '#2D1F5E',
+                    flexDirection: 'row',
                     alignItems: 'center',
-                    justifyContent: 'center',
+                    opacity: isCompleted ? 0.7 : 1,
                   }}
                 >
-                  <Ionicons name="time" size={14} color="#7C3AED" style={{ marginBottom: 2 }} />
-                  <Text
+                  {/* Time pill */}
+                  <View
                     style={{
-                      color: '#A78BFA',
-                      fontSize: 14,
-                      fontWeight: '900',
-                      textAlign: 'center',
+                      backgroundColor: '#160D35',
+                      borderRadius: 12,
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      marginRight: 14,
+                      borderWidth: 1,
+                      borderColor: '#3B1A6B',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                     }}
                   >
-                    {formatTime(r.hour, r.minute)}
-                  </Text>
-                </View>
-
-                {/* Info */}
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{
-                      color: '#E5E7EB',
-                      fontSize: 15,
-                      fontWeight: '700',
-                    }}
-                    numberOfLines={1}
-                  >
-                    {r.title}
-                  </Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 }}>
-                    <View
-                      style={{
-                        width: 7,
-                        height: 7,
-                        borderRadius: 4,
-                        backgroundColor: r.active ? '#10B981' : '#EF4444',
-                      }}
-                    />
+                    <Ionicons name="time" size={14} color="#7C3AED" style={{ marginBottom: 2 }} />
                     <Text
                       style={{
-                        color: r.active ? '#10B981' : '#EF4444',
-                        fontSize: 12,
-                        fontWeight: '600',
+                        color: '#A78BFA',
+                        fontSize: 14,
+                        fontWeight: '900',
+                        textAlign: 'center',
+                        textDecorationLine: isCompleted ? 'line-through' : 'none',
                       }}
                     >
-                      {r.active ? 'Activo' : 'Inactivo'}
+                      {formatTime(r.hour, r.minute)}
                     </Text>
                   </View>
-                </View>
-              </Animated.View>
-            ))
+
+                  {/* Info */}
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        color: isCompleted ? '#4B5563' : '#E5E7EB',
+                        fontSize: 15,
+                        fontWeight: '700',
+                        textDecorationLine: isCompleted ? 'line-through' : 'none',
+                      }}
+                      numberOfLines={1}
+                    >
+                      {r.title}
+                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 5 }}>
+                      {/* Status dot */}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <View
+                          style={{
+                            width: 7,
+                            height: 7,
+                            borderRadius: 4,
+                            backgroundColor: isCompleted ? '#10B981' : r.active ? '#10B981' : '#EF4444',
+                          }}
+                        />
+                        <Text
+                          style={{
+                            color: isCompleted ? '#10B981' : r.active ? '#10B981' : '#EF4444',
+                            fontSize: 11,
+                            fontWeight: '600',
+                          }}
+                        >
+                          {isCompleted ? 'Completado' : r.active ? 'Activo' : 'Inactivo'}
+                        </Text>
+                      </View>
+
+                      {/* Category badge */}
+                      <View style={{
+                        flexDirection: 'row', alignItems: 'center', gap: 3,
+                        backgroundColor: `${catColor}15`,
+                        borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2,
+                        borderWidth: 1, borderColor: `${catColor}30`,
+                      }}>
+                        <Ionicons name={catIconName as any} size={10} color={catColor} />
+                        <Text style={{ color: catColor, fontSize: 10, fontWeight: '700' }}>
+                          {catLbl}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </Animated.View>
+              );
+            })
           )}
         </Animated.View>
       </ScrollView>

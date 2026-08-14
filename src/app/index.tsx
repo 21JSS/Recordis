@@ -1,11 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
+import * as Haptics from 'expo-haptics';
 import { useEffect, useRef, useState } from 'react';
 import {
   Platform,
   ScrollView,
   StatusBar,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -21,24 +23,77 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import ConfettiCannon from 'react-native-confetti-cannon';
 
 import { AddReminderModal } from '@/components/reminders/AddReminderModal';
 import { AlarmOverlay } from '@/components/reminders/AlarmOverlay';
+import { EditReminderModal } from '@/components/reminders/EditReminderModal';
 import { ReminderCard } from '@/components/reminders/ReminderCard';
 import { SimpleModeModal } from '@/components/reminders/SimpleModeModal';
-import { useReminders } from '@/context/RemindersContext';
+import { useReminders, type Reminder } from '@/context/RemindersContext';
 import { getGreeting, getLiveTime } from '@/utils/helpers';
+import { CATEGORIES, type Category } from '@/constants/categories';
 
 // ─── Alarm sound ──────────────────────────────────────────────────────────────
 const ALARM_SOURCE = require('../../assets/audio/alarm.ogg');
+
+// ─── Sort options ─────────────────────────────────────────────────────────────
+type SortMode = 'date' | 'priority' | 'time' | 'category';
+const SORT_OPTIONS: { value: SortMode; label: string; icon: string }[] = [
+  { value: 'date',     label: 'Fecha',     icon: 'calendar-outline' },
+  { value: 'time',     label: 'Hora',      icon: 'time-outline' },
+  { value: 'priority', label: 'Prioridad', icon: 'flag-outline' },
+  { value: 'category', label: 'Categoría', icon: 'pricetag-outline' },
+];
+
+const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
+
+// ─── Dynamic Background Theme ────────────────────────────────────────────────
+function getGradientColors(): readonly [string, string] {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) {
+    // Morning (sunrise vibes)
+    return ['#1E1B4B', '#2E1065'];
+  } else if (hour >= 12 && hour < 18) {
+    // Afternoon (bright)
+    return ['#0F172A', '#1E1B4B'];
+  } else if (hour >= 18 && hour < 21) {
+    // Evening (sunset)
+    return ['#2E1065', '#0F172A'];
+  } else {
+    // Night
+    return ['#020617', '#0F172A'];
+  }
+}
+
+function sortReminders(list: Reminder[], mode: SortMode, asc: boolean): Reminder[] {
+  const sorted = [...list].sort((a, b) => {
+    switch (mode) {
+      case 'date':
+        return a.date.localeCompare(b.date) || (a.hour * 60 + a.minute) - (b.hour * 60 + b.minute);
+      case 'time':
+        return (a.hour * 60 + a.minute) - (b.hour * 60 + b.minute);
+      case 'priority':
+        return PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+      case 'category':
+        return (a.category || 'personal').localeCompare(b.category || 'personal');
+      default:
+        return 0;
+    }
+  });
+  return asc ? sorted : sorted.reverse();
+}
 
 // ─── Home Screen ──────────────────────────────────────────────────────────────
 export default function HomeScreen() {
   const {
     reminders,
     addReminder,
+    editReminder,
     deleteReminder,
     toggleReminder,
+    completeReminder,
     dismissAlarm,
     snoozeReminder,
     ringingReminder,
@@ -52,6 +107,13 @@ export default function HomeScreen() {
     icon: 'partly-sunny',
   });
 
+  // ── New V4 state ──
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<Category | 'all'>('all');
+  const [sortMode, setSortMode] = useState<SortMode>('date');
+  const [sortAsc, setSortAsc] = useState(true);
+  const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
+
   // ─── Safe area insets (auto-detects Android nav bar, iPhone home bar, etc) ──
   const insets = useSafeAreaInsets();
 
@@ -62,6 +124,10 @@ export default function HomeScreen() {
 
   // Extra scroll padding to ensure last item is not hidden behind tab bar
   const scrollPaddingBottom = insets.bottom + 70 + 100;
+
+  // ── Confetti gamification ──
+  const [showConfetti, setShowConfetti] = useState(false);
+  const prevActiveCount = useRef(-1);
 
   // Sound ref
   const soundRef = useRef<Audio.Sound | null>(null);
@@ -89,6 +155,7 @@ export default function HomeScreen() {
     modeScale.value = withSpring(0.85, { damping: 5 }, () => {
       modeScale.value = withSpring(1, { damping: 10 });
     });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSimpleMode((v) => !v);
   }
 
@@ -154,23 +221,69 @@ export default function HomeScreen() {
     };
   }, [ringingReminder?.id]);
 
-  const activeCount = reminders.filter((r) => r.active).length;
+  // ── Filter, search, and sort ──
+  const activeCount = reminders.filter((r) => r.active && !r.completedAt).length;
+
+  let filtered = reminders;
+
+  // Category filter
+  if (categoryFilter !== 'all') {
+    filtered = filtered.filter((r) => (r.category || 'personal') === categoryFilter);
+  }
+
+  // Search filter
+  if (searchQuery.trim()) {
+    const q = searchQuery.toLowerCase().trim();
+    filtered = filtered.filter(
+      (r) =>
+        r.title.toLowerCase().includes(q) ||
+        (r.notes && r.notes.toLowerCase().includes(q))
+    );
+  }
+
+  // Sort
+  filtered = sortReminders(filtered, sortMode, sortAsc);
+
+  function handleSortPress(mode: SortMode) {
+    Haptics.selectionAsync();
+    if (sortMode === mode) {
+      setSortAsc((v) => !v);
+    } else {
+      setSortMode(mode);
+      setSortAsc(true);
+    }
+  }
+
+  // Confetti effect trigger
+  useEffect(() => {
+    if (prevActiveCount.current > 0 && activeCount === 0) {
+      // User just completed their last active reminder!
+      setShowConfetti(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setTimeout(() => setShowConfetti(false), 5000);
+    }
+    prevActiveCount.current = activeCount;
+  }, [activeCount]);
+
+  const bgColors = getGradientColors();
 
   return (
-    // edges={['top','left','right']} — SafeAreaView handles top/sides
-    // The bottom is handled manually via insets so the tab bar from Expo Router
-    // doesn't double-apply the safe area bottom
-    <SafeAreaView
-      style={{ flex: 1, backgroundColor: '#080816' }}
-      edges={['top', 'left', 'right']}
-    >
-      <StatusBar
-        barStyle="light-content"
-        backgroundColor="#080816"
-        translucent={false}
+    <View style={{ flex: 1, backgroundColor: bgColors[0] }}>
+      <LinearGradient
+        colors={bgColors}
+        style={{ position: 'absolute', width: '100%', height: '100%' }}
       />
+      <SafeAreaView
+        style={{ flex: 1 }}
+        edges={['top', 'left', 'right']}
+      >
+        <StatusBar
+          barStyle="light-content"
+          backgroundColor="transparent"
+          translucent={true}
+        />
 
-      {/* ── Header ── */}
+        {/* ── Header ── */}
       <Animated.View
         entering={FadeInDown.duration(550).springify()}
         style={{
@@ -264,12 +377,135 @@ export default function HomeScreen() {
         </View>
       </Animated.View>
 
+      {/* ── Search Bar ── */}
+      <Animated.View
+        entering={FadeInDown.delay(80).springify()}
+        style={{ paddingHorizontal: 18, paddingTop: 14, paddingBottom: 6 }}
+      >
+        <View style={{
+          flexDirection: 'row', alignItems: 'center', gap: 10,
+          backgroundColor: '#111128',
+          borderRadius: 18,
+          paddingHorizontal: 16,
+          paddingVertical: Platform.OS === 'ios' ? 12 : 4,
+          borderWidth: 1.5,
+          borderColor: searchQuery ? '#7C3AED' : '#1A1A35',
+        }}>
+          <Ionicons name="search" size={18} color={searchQuery ? '#A78BFA' : '#4B5563'} />
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Buscar recordatorios..."
+            placeholderTextColor="#2D3748"
+            returnKeyType="search"
+            style={{
+              flex: 1,
+              color: '#FFF',
+              fontSize: 15,
+              fontWeight: '600',
+            }}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={18} color="#4B5563" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </Animated.View>
+
+      {/* ── Category Filter Chips (hidden in simple mode) ── */}
+      {!simpleMode && (
+        <Animated.View entering={FadeInDown.delay(120).springify()}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 18, paddingVertical: 8, gap: 8 }}
+          >
+            {/* "All" chip */}
+            <TouchableOpacity
+              onPress={() => { Haptics.selectionAsync(); setCategoryFilter('all'); }}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 5,
+                paddingHorizontal: 14, paddingVertical: 8, borderRadius: 100,
+                backgroundColor: categoryFilter === 'all' ? '#7C3AED22' : '#0F0F28',
+                borderWidth: 1.5,
+                borderColor: categoryFilter === 'all' ? '#7C3AED' : '#1A1A35',
+              }}
+            >
+              <Ionicons name="apps-outline" size={13} color={categoryFilter === 'all' ? '#A78BFA' : '#4B5563'} />
+              <Text style={{ color: categoryFilter === 'all' ? '#A78BFA' : '#4B5563', fontSize: 12, fontWeight: '700' }}>
+                Todos
+              </Text>
+            </TouchableOpacity>
+
+            {CATEGORIES.map((c) => (
+              <TouchableOpacity
+                key={c.value}
+                onPress={() => { Haptics.selectionAsync(); setCategoryFilter(c.value); }}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 5,
+                  paddingHorizontal: 14, paddingVertical: 8, borderRadius: 100,
+                  backgroundColor: categoryFilter === c.value ? `${c.color}22` : '#0F0F28',
+                  borderWidth: 1.5,
+                  borderColor: categoryFilter === c.value ? c.color : '#1A1A35',
+                }}
+              >
+                <Ionicons name={c.icon as any} size={13} color={categoryFilter === c.value ? c.color : '#4B5563'} />
+                <Text style={{ color: categoryFilter === c.value ? c.color : '#4B5563', fontSize: 12, fontWeight: '700' }}>
+                  {c.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </Animated.View>
+      )}
+
+      {/* ── Sort Chips (hidden in simple mode) ── */}
+      {!simpleMode && (
+        <Animated.View entering={FadeInDown.delay(160).springify()}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 8, gap: 6 }}
+          >
+            {SORT_OPTIONS.map((opt) => {
+              const active = sortMode === opt.value;
+              return (
+                <TouchableOpacity
+                  key={opt.value}
+                  onPress={() => handleSortPress(opt.value)}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', gap: 4,
+                    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 100,
+                    backgroundColor: active ? '#16163A' : 'transparent',
+                    borderWidth: 1,
+                    borderColor: active ? '#2D1F5E' : 'transparent',
+                  }}
+                >
+                  <Ionicons name={opt.icon as any} size={12} color={active ? '#A78BFA' : '#374151'} />
+                  <Text style={{ color: active ? '#A78BFA' : '#374151', fontSize: 11, fontWeight: '700' }}>
+                    {opt.label}
+                  </Text>
+                  {active && (
+                    <Ionicons
+                      name={sortAsc ? 'arrow-up' : 'arrow-down'}
+                      size={11}
+                      color="#A78BFA"
+                    />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </Animated.View>
+      )}
+
       {/* ── Reminders list ── */}
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: 18,
-          paddingTop: 16,
+          paddingTop: 8,
           // SAFE AREA FIX: enough bottom padding so last card isn't behind tab bar
           paddingBottom: scrollPaddingBottom,
         }}
@@ -280,7 +516,7 @@ export default function HomeScreen() {
         overScrollMode="always"
         bounces={Platform.OS === 'ios'}
       >
-        {reminders.length === 0 ? (
+        {filtered.length === 0 ? (
           <Animated.View
             entering={FadeInUp.delay(200).springify()}
             style={{ alignItems: 'center', marginTop: 72 }}
@@ -292,23 +528,26 @@ export default function HomeScreen() {
               borderWidth: 1.5, borderColor: '#2D1F5E',
               marginBottom: 20,
             }}>
-              <Ionicons name="alarm-outline" size={48} color="#2D1F5E" />
+              <Ionicons name={searchQuery ? 'search-outline' : 'alarm-outline'} size={48} color="#2D1F5E" />
             </View>
             <Text style={{ color: '#4B5563', fontSize: 18, fontWeight: '700', textAlign: 'center', marginBottom: 6 }}>
-              Sin recordatorios
+              {searchQuery ? 'Sin resultados' : 'Sin recordatorios'}
             </Text>
             <Text style={{ color: '#1F2937', fontSize: 14, textAlign: 'center' }}>
-              Toca el botón + para crear uno
+              {searchQuery ? `No hay recordatorios que coincidan con "${searchQuery}"` : 'Toca el botón + para crear uno'}
             </Text>
           </Animated.View>
         ) : (
-          reminders.map((r, i) => (
+          filtered.map((r, i) => (
             <ReminderCard
               key={r.id}
               reminder={r}
               index={i}
+              simpleMode={simpleMode}
               onToggle={() => toggleReminder(r.id)}
               onDelete={() => deleteReminder(r.id)}
+              onEdit={() => setEditingReminder(r)}
+              onComplete={() => completeReminder(r.id)}
             />
           ))
         )}
@@ -330,7 +569,7 @@ export default function HomeScreen() {
       }}>
         <Animated.View style={fabStyle}>
           <TouchableOpacity
-            onPress={() => setShowModal(true)}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowModal(true); }}
             activeOpacity={0.85}
             style={{
               width: 64,
@@ -375,12 +614,31 @@ export default function HomeScreen() {
         }}
       />
 
+      {/* ── Edit Modal ── */}
+      <EditReminderModal
+        visible={!!editingReminder}
+        reminder={editingReminder}
+        onClose={() => setEditingReminder(null)}
+        onSave={(id, params) => {
+          editReminder(id, params);
+          setEditingReminder(null);
+        }}
+      />
+
       {/* ── Alarm Overlay ── */}
       <AlarmOverlay
         reminder={ringingReminder}
         onDismiss={dismissAlarm}
         onSnooze={() => ringingReminder && snoozeReminder(ringingReminder.id)}
       />
-    </SafeAreaView>
+
+      {showConfetti && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999 }} pointerEvents="none">
+          <ConfettiCannon count={150} origin={{ x: -10, y: 0 }} fallSpeed={3000} fadeOut />
+          <ConfettiCannon count={150} origin={{ x: 400, y: 0 }} fallSpeed={3000} fadeOut />
+        </View>
+      )}
+      </SafeAreaView>
+    </View>
   );
 }
