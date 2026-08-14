@@ -57,9 +57,10 @@ export async function scheduleReminderNotification(reminder: Reminder): Promise<
     const [year, month, day] = reminder.date.split('-').map(Number);
     const triggerDate = new Date(year, month - 1, day, reminder.hour, reminder.minute, 0, 0);
 
-    // Don't schedule if the time has already passed (for non-repeating)
+    // If the time has already passed (for non-repeating), schedule immediately
+    // so the user still gets feedback instead of silently skipping
     if (reminder.repeat === 'none' && triggerDate.getTime() <= Date.now()) {
-      return;
+      triggerDate.setTime(Date.now() + 5000); // fire in 5 seconds
     }
 
     let trigger: Notifications.NotificationTriggerInput;
