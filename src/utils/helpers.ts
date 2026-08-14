@@ -22,9 +22,9 @@ export function getLiveTime() {
 
 export function getGreeting() {
   const h = new Date().getHours();
-  if (h < 12) return 'Buenos días';
-  if (h < 19) return 'Buenas tardes';
-  return 'Buenas noches';
+  if (h >= 5 && h < 12) return '¡Excelente mañana!';
+  if (h >= 12 && h < 19) return '¡Tarde increíble!';
+  return '¡Linda noche!';
 }
 
 export function todayISO() {

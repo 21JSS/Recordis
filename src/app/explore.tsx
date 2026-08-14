@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import { Alert, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -129,8 +130,13 @@ export default function StatsScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#080816' }}>
-      <StatusBar barStyle="light-content" backgroundColor="#080816" />
+    <View style={{ flex: 1, backgroundColor: '#2C1259' }}>
+      <LinearGradient
+        colors={['#2C1259', '#04010A']}
+        style={{ position: 'absolute', width: '100%', height: '100%' }}
+      />
+      <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent={true} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -388,6 +394,7 @@ export default function StatsScreen() {
         onExport={exportReminders}
         onImport={importReminders}
       />
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
