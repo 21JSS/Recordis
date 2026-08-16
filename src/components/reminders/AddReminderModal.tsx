@@ -230,6 +230,54 @@ export function AddReminderModal({ visible, onClose, onSave }: AddReminderModalP
   const [dosage, setDosage]                 = useState('');
   const [intervalHours, setIntervalHours]   = useState(8);
   const [durationDays, setDurationDays]     = useState(5);
+  const [showAdvanced, setShowAdvanced]     = useState(false);
+
+  // ── Parseador de Lenguaje Natural (NLP Básico) ──
+  useEffect(() => {
+    if (showAdvanced || mode === 'medication') return; 
+    
+    const t = title.toLowerCase();
+    
+    // Fechas
+    if (t.includes('mañana')) {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+      setDate(tStr);
+    } else if (t.includes('hoy')) {
+      setDate(todayISO());
+    }
+
+    // Horas ("a las 8", "a las 10:30", "a las 8pm")
+    const timeMatch = t.match(/a las (\d{1,2})(?::(\d{2}))?\s*(am|pm|de la mañana|de la tarde|de la noche)?/);
+    if (timeMatch) {
+      let h = parseInt(timeMatch[1], 10);
+      const m = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
+      let ampmVal = ampm;
+      
+      const modifier = timeMatch[3];
+      if (modifier) {
+        if (modifier.includes('pm') || modifier.includes('tarde') || modifier.includes('noche')) {
+           ampmVal = 'PM';
+           if (h < 12) h += 12;
+        } else if (modifier.includes('am') || modifier.includes('mañana')) {
+           ampmVal = 'AM';
+           if (h === 12) h = 0;
+        }
+      }
+      
+      let displayH = h;
+      let newAmPm: 'AM' | 'PM' = 'AM';
+      if (h === 0) { displayH = 12; newAmPm = 'AM'; }
+      else if (h < 12) { displayH = h; newAmPm = 'AM'; }
+      else if (h === 12) { displayH = 12; newAmPm = 'PM'; }
+      else { displayH = h - 12; newAmPm = 'PM'; }
+      
+      setHour(displayH);
+      setMinute(m);
+      setAmPm(newAmPm);
+    }
+  }, [title, showAdvanced, mode]);
 
   function reset() {
     setMode('normal');
@@ -238,6 +286,7 @@ export function AddReminderModal({ visible, onClose, onSave }: AddReminderModalP
     setRepeat('none'); setPriority('medium'); setNotes(''); setSnooze(10);
     setCategory('personal');
     setMedicationName(''); setDosage(''); setIntervalHours(8); setDurationDays(5);
+    setShowAdvanced(false);
   }
 
   function handleSave() {
@@ -435,10 +484,19 @@ export function AddReminderModal({ visible, onClose, onSave }: AddReminderModalP
                 <>
                   <Animated.View entering={FadeInDown.delay(50).springify()}>
                     <SectionLabel icon="pencil-outline" title="Nombre" />
-                    <TextInput value={title} onChangeText={setTitle} placeholder="¿Qué tienes que hacer?" placeholderTextColor="#2D3748" returnKeyType="done" style={{ backgroundColor: '#0C0C20', color: '#FFF', borderRadius: 16, paddingHorizontal: 18, paddingVertical: 15, fontSize: 16, borderWidth: 1.5, borderColor: '#2A1A50' }} />
+                    <TextInput value={title} onChangeText={setTitle} placeholder="Ej: Tomar pastilla mañana a las 8pm" placeholderTextColor="#2D3748" returnKeyType="done" style={{ backgroundColor: '#0C0C20', color: '#FFF', borderRadius: 16, paddingHorizontal: 18, paddingVertical: 15, fontSize: 16, borderWidth: 1.5, borderColor: '#2A1A50' }} />
                   </Animated.View>
 
-                  <Animated.View entering={FadeInDown.delay(100).springify()}>
+                  {!showAdvanced ? (
+                    <Animated.View entering={FadeInDown.delay(100).springify()}>
+                      <TouchableOpacity onPress={() => setShowAdvanced(true)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 }}>
+                        <Ionicons name="chevron-down" size={16} color="#A78BFA" />
+                        <Text style={{ color: '#A78BFA', fontSize: 14, fontWeight: '700' }}>Más opciones (Fecha, Hora, Color...)</Text>
+                      </TouchableOpacity>
+                    </Animated.View>
+                  ) : (
+                    <>
+                      <Animated.View entering={FadeInDown.delay(100).springify()}>
                     <SectionLabel icon="time-outline" title="Hora exacta" />
                     <View style={{ flexDirection: 'row', gap: 10 }}>
                       <NumberStepper value={hour} min={1} max={12} label="Hora" onChange={setHour} />
@@ -521,6 +579,8 @@ export function AddReminderModal({ visible, onClose, onSave }: AddReminderModalP
                     <SectionLabel icon="document-text-outline" title="Notas (opcional)" />
                     <TextInput value={notes} onChangeText={setNotes} placeholder="Agrega detalles adicionales..." placeholderTextColor="#2D3748" multiline numberOfLines={3} textAlignVertical="top" style={{ backgroundColor: '#0C0C20', color: '#FFF', borderRadius: 16, paddingHorizontal: 18, paddingVertical: 14, fontSize: 15, borderWidth: 1.5, borderColor: '#2A1A50', minHeight: 90 }} />
                   </Animated.View>
+                    </>
+                  )}
                 </>
               )}
 

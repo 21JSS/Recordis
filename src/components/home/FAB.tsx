@@ -13,11 +13,10 @@ import * as Haptics from 'expo-haptics';
 
 interface FABProps {
   fabBottom: number;
-  simpleMode: boolean;
   onPress: () => void;
 }
 
-export function FAB({ fabBottom, simpleMode, onPress }: FABProps) {
+export function FAB({ fabBottom, onPress }: FABProps) {
   // ── Animación de Pulso (Latido) ──
   const fabScale = useSharedValue(1);
   
@@ -53,8 +52,7 @@ export function FAB({ fabBottom, simpleMode, onPress }: FABProps) {
             width: 64,
             height: 64,
             borderRadius: 32,
-            // Cambia de morado a blanco dependiendo si estamos en modo simple o no
-            backgroundColor: simpleMode ? '#A78BFA' : '#FFFFFF',
+            backgroundColor: '#A78BFA',
             alignItems: 'center',
             justifyContent: 'center',
             shadowColor: '#7C3AED',
@@ -65,9 +63,9 @@ export function FAB({ fabBottom, simpleMode, onPress }: FABProps) {
           }}
         >
           <Ionicons
-            name={simpleMode ? 'flash' : 'add'}
-            size={simpleMode ? 30 : 38}
-            color={simpleMode ? '#FFF' : '#7C3AED'}
+            name="add"
+            size={38}
+            color="#FFF"
           />
         </TouchableOpacity>
       </Animated.View>

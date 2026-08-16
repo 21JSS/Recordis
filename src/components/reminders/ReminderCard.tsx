@@ -22,7 +22,6 @@ import { categoryColor, categoryIcon, categoryLabel } from '@/constants/categori
 interface ReminderCardProps {
   reminder: Reminder;
   index: number;
-  simpleMode?: boolean;
   onToggle: () => void;
   onDelete: () => void;
   onEdit?: () => void;
@@ -83,7 +82,7 @@ function CompleteAction({ isCompleted }: { isCompleted: boolean }) {
   );
 }
 
-export function ReminderCard({ reminder, index, simpleMode, onToggle, onDelete, onEdit, onComplete }: ReminderCardProps) {
+export function ReminderCard({ reminder, index, onToggle, onDelete, onEdit, onComplete }: ReminderCardProps) {
   const swipeableRef = useRef<Swipeable>(null);
   const ringScale = useSharedValue(1);
   const accentOpacity = useSharedValue(0.18);
@@ -119,9 +118,9 @@ export function ReminderCard({ reminder, index, simpleMode, onToggle, onDelete, 
   const catIcon = categoryIcon(reminder.category || 'personal');
   const catLabel = categoryLabel(reminder.category || 'personal');
 
-  // Font sizes adapt for simple mode (larger = more accessible)
-  const titleSize = simpleMode ? 18 : 15;
-  const timeSize = simpleMode ? 30 : 26;
+  // Tamaños de fuente grandes para accesibilidad universal
+  const titleSize = 18;
+  const timeSize = 30;
 
   function handleDelete() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -300,8 +299,8 @@ export function ReminderCard({ reminder, index, simpleMode, onToggle, onDelete, 
                   </View>
                 )}
 
-                {/* Repeat - hide in simple mode */}
-                {!simpleMode && reminder.repeat !== 'none' && (
+                {/* Repeat */}
+                {reminder.repeat !== 'none' && (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#0C0C20', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3 }}>
                     <Ionicons name="repeat-outline" size={11} color="#6B7280" />
                     <Text style={{ color: '#6B7280', fontSize: 11, fontWeight: '600' }}>
@@ -310,67 +309,21 @@ export function ReminderCard({ reminder, index, simpleMode, onToggle, onDelete, 
                   </View>
                 )}
 
-                {/* Priority dot - hide in simple mode */}
-                {!simpleMode && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#0C0C20', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3 }}>
-                    <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: pColor }} />
-                    <Text style={{ color: pColor, fontSize: 11, fontWeight: '700', textTransform: 'capitalize' }}>
-                      {reminder.priority === 'high' ? 'Alta' : reminder.priority === 'medium' ? 'Media' : 'Baja'}
-                    </Text>
-                  </View>
-                )}
+                {/* Priority dot */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#0C0C20', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3 }}>
+                  <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: pColor }} />
+                  <Text style={{ color: pColor, fontSize: 11, fontWeight: '700', textTransform: 'capitalize' }}>
+                    {reminder.priority === 'high' ? 'Alta' : reminder.priority === 'medium' ? 'Media' : 'Baja'}
+                  </Text>
+                </View>
               </View>
 
               {/* Notes preview */}
-              {!simpleMode && !!reminder.notes && (
+              {!!reminder.notes && (
                 <Text numberOfLines={1} style={{ color: '#374151', fontSize: 12, marginTop: 6 }}>
                   {reminder.notes}
                 </Text>
               )}
-            </View>
-
-            {/* Action buttons */}
-            <View style={{ alignItems: 'center', gap: 6, marginLeft: 6 }}>
-              {/* Share */}
-              <TouchableOpacity
-                onPress={handleShare}
-                style={{
-                  width: 32, height: 32, borderRadius: 16,
-                  backgroundColor: '#12121E',
-                  alignItems: 'center', justifyContent: 'center',
-                  borderWidth: 1, borderColor: '#2A1A50',
-                }}
-              >
-                <Ionicons name="share-outline" size={15} color="#A78BFA" />
-              </TouchableOpacity>
-
-              {/* Edit */}
-              {onEdit && (
-                <TouchableOpacity
-                  onPress={() => { Haptics.selectionAsync(); onEdit(); }}
-                  style={{
-                    width: 32, height: 32, borderRadius: 16,
-                    backgroundColor: '#12121E',
-                    alignItems: 'center', justifyContent: 'center',
-                    borderWidth: 1, borderColor: '#2A1A50',
-                  }}
-                >
-                  <Ionicons name="pencil-outline" size={15} color="#60A5FA" />
-                </TouchableOpacity>
-              )}
-
-              {/* Delete */}
-              <TouchableOpacity
-                onPress={handleDelete}
-                style={{
-                  width: 32, height: 32, borderRadius: 16,
-                  backgroundColor: '#12121E',
-                  alignItems: 'center', justifyContent: 'center',
-                  borderWidth: 1, borderColor: '#2A1A50',
-                }}
-              >
-                <Ionicons name="close" size={15} color="#EF4444" />
-              </TouchableOpacity>
             </View>
           </View>
         </View>

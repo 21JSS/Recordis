@@ -17,36 +17,17 @@ const INSPIRATIONAL_QUOTES = [
 
 interface HomeHeaderProps {
   weather: { temp: string; icon: keyof typeof Ionicons.glyphMap };
-  simpleMode: boolean;
-  setSimpleMode: React.Dispatch<React.SetStateAction<boolean>>;
   liveTime: string;
   activeCount: number;
 }
 
 export function HomeHeader({
   weather,
-  simpleMode,
-  setSimpleMode,
   liveTime,
   activeCount,
 }: HomeHeaderProps) {
   
   const dailyQuote = React.useMemo(() => INSPIRATIONAL_QUOTES[Math.floor(Math.random() * INSPIRATIONAL_QUOTES.length)], []);
-
-  // ── Animación del botón de Modo Simple / Normal ──
-  // Usamos useSharedValue para escalar suavemente el botón cuando es presionado.
-  const modeScale = useSharedValue(1);
-  const modeStyle = useAnimatedStyle(() => ({ transform: [{ scale: modeScale.value }] }));
-
-  function toggleMode() {
-    // Escala hacia abajo a 0.96 y regresa a 1 de forma muy suave
-    modeScale.value = withTiming(0.96, { duration: 80 }, () => {
-      modeScale.value = withTiming(1, { duration: 100 });
-    });
-    // Hacemos una vibración ligera en el celular (feedback táctil)
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSimpleMode((v) => !v);
-  }
 
   return (
     <Animated.View
@@ -80,7 +61,7 @@ export function HomeHeader({
         </View>
       </View>
 
-      {/* ── Fila 2: Título Principal y Botón de Modo Simple ── */}
+      {/* ── Fila 2: Título Principal ── */}
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
         <View>
           <Text style={{ color: '#FFFFFF', fontSize: 28, fontWeight: '900', letterSpacing: -0.5 }}>
@@ -90,40 +71,6 @@ export function HomeHeader({
             "{dailyQuote}"
           </Text>
         </View>
-
-        {/* ── Switch Simple / Normal ── */}
-        <Animated.View style={modeStyle}>
-          <TouchableOpacity
-            onPress={toggleMode}
-            activeOpacity={0.75}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 8,
-              backgroundColor: simpleMode ? '#A78BFA22' : '#12122A',
-              paddingHorizontal: 16,
-              paddingVertical: 10,
-              borderRadius: 24,
-              borderWidth: 1.5,
-              borderColor: simpleMode ? '#A78BFA' : '#252550',
-            }}
-          >
-            <Ionicons
-              name={simpleMode ? 'flash' : 'options-outline'}
-              size={16}
-              color={simpleMode ? '#A78BFA' : '#4B5563'}
-            />
-            <Text style={{
-              color: simpleMode ? '#A78BFA' : '#4B5563',
-              fontSize: 14,
-              fontWeight: '800',
-              letterSpacing: 0.3,
-            }}>
-              {simpleMode ? 'Simple' : 'Normal'}
-            </Text>
-          </TouchableOpacity>
-        </Animated.View>
       </View>
 
       {/* ── Fila 3: Reloj en vivo y Número de Recordatorios Activos ── */}

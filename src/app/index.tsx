@@ -30,13 +30,11 @@ import { AddReminderModal } from '@/components/reminders/AddReminderModal';
 import { AlarmOverlay } from '@/components/reminders/AlarmOverlay';
 import { EditReminderModal } from '@/components/reminders/EditReminderModal';
 import { ReminderCard } from '@/components/reminders/ReminderCard';
-import { SimpleModeModal } from '@/components/reminders/SimpleModeModal';
 
 // Nuevos componentes refactorizados
 import { HomeHeader } from '@/components/home/HomeHeader';
 import { SearchBar } from '@/components/home/SearchBar';
 import { CategoryChips } from '@/components/home/CategoryChips';
-import { SortChips, type SortMode } from '@/components/home/SortChips';
 import { FAB } from '@/components/home/FAB';
 
 import { CATEGORIES, type Category } from '@/constants/categories';
@@ -57,22 +55,12 @@ function getGradientColors(): readonly [string, string] {
 
 
 
-function sortReminders(list: Reminder[], mode: SortMode, asc: boolean): Reminder[] {
+function sortRemindersTimeline(list: Reminder[]): Reminder[] {
+  // Ordenar siempre como Timeline (por fecha y luego por hora)
   const sorted = [...list].sort((a, b) => {
-    switch (mode) {
-      case 'date':
-        return a.date.localeCompare(b.date) || (a.hour * 60 + a.minute) - (b.hour * 60 + b.minute);
-      case 'time':
-        return (a.hour * 60 + a.minute) - (b.hour * 60 + b.minute);
-      case 'priority':
-        return PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
-      case 'category':
-        return (a.category || 'personal').localeCompare(b.category || 'personal');
-      default:
-        return 0;
-    }
+    return a.date.localeCompare(b.date) || (a.hour * 60 + a.minute) - (b.hour * 60 + b.minute);
   });
-  return asc ? sorted : sorted.reverse();
+  return sorted;
 }
 
 // ─── Home Screen ──────────────────────────────────────────────────────────────
@@ -90,7 +78,6 @@ export default function HomeScreen() {
   } = useReminders();
 
   const [showModal, setShowModal] = useState(false);
-  const [simpleMode, setSimpleMode] = useState(false);
   const [liveTime, setLiveTime] = useState(getLiveTime());
   const [weather, setWeather] = useState<{ temp: string; icon: keyof typeof Ionicons.glyphMap }>({
     temp: '22°C',
@@ -100,8 +87,6 @@ export default function HomeScreen() {
   // ── New V4 state ──
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<Category | 'all'>('all');
-  const [sortMode, setSortMode] = useState<SortMode>('date');
-  const [sortAsc, setSortAsc] = useState(true);
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
 
   // ─── Safe area insets (auto-detects Android nav bar, iPhone home bar, etc) ──
@@ -205,18 +190,8 @@ export default function HomeScreen() {
     );
   }
 
-  // Sort
-  filtered = sortReminders(filtered, sortMode, sortAsc);
-
-  function handleSortPress(mode: SortMode) {
-    Haptics.selectionAsync();
-    if (sortMode === mode) {
-      setSortAsc((v) => !v);
-    } else {
-      setSortMode(mode);
-      setSortAsc(true);
-    }
-  }
+  // Sort Timeline (Always Date + Time)
+  filtered = sortRemindersTimeline(filtered);
 
   // Confetti effect trigger
   useEffect(() => {
@@ -247,11 +222,9 @@ export default function HomeScreen() {
           translucent={true}
         />
 
-        {/* ── Encabezado principal (Saludo, Clima, Reloj, Botón Simple) ── */}
+        {/* ── Encabezado principal (Saludo, Clima, Reloj) ── */}
         <HomeHeader
           weather={weather}
-          simpleMode={simpleMode}
-          setSimpleMode={setSimpleMode}
           liveTime={liveTime}
           activeCount={activeCount}
         />
@@ -262,22 +235,11 @@ export default function HomeScreen() {
           setSearchQuery={setSearchQuery}
         />
 
-        {/* ── Chips de Categorías (Sólo en modo normal) ── */}
-        {!simpleMode && (
-          <CategoryChips
-            categoryFilter={categoryFilter}
-            setCategoryFilter={setCategoryFilter}
-          />
-        )}
-
-        {/* ── Chips de Ordenamiento (Sólo en modo normal) ── */}
-        {!simpleMode && (
-          <SortChips
-            sortMode={sortMode}
-            sortAsc={sortAsc}
-            onSortPress={handleSortPress}
-          />
-        )}
+        {/* ── Chips de Categorías ── */}
+        <CategoryChips
+          categoryFilter={categoryFilter}
+          setCategoryFilter={setCategoryFilter}
+        />
 
         {/* ── Lista de Recordatorios ── */}
         <ScrollView
@@ -322,7 +284,6 @@ export default function HomeScreen() {
                 key={r.id}
                 reminder={r}
                 index={i}
-                simpleMode={simpleMode}
                 onToggle={() => toggleReminder(r.id)}
                 onDelete={() => deleteReminder(r.id)}
                 onEdit={() => setEditingReminder(r)}
@@ -334,23 +295,12 @@ export default function HomeScreen() {
         {/* ── Botón Flotante Animado ── */}
         <FAB
           fabBottom={fabBottom}
-          simpleMode={simpleMode}
           onPress={() => setShowModal(true)}
         />
 
-        {/* ── Simple Mode Modal ── */}
-        <SimpleModeModal
-          visible={showModal && simpleMode}
-          onClose={() => setShowModal(false)}
-          onSave={(params) => {
-            addReminder(params);
-            setShowModal(false);
-          }}
-        />
-
-        {/* ── Advanced Add Modal ── */}
+        {/* ── Add Reminder Modal (Progressive Disclosure) ── */}
         <AddReminderModal
-          visible={showModal && !simpleMode}
+          visible={showModal}
           onClose={() => setShowModal(false)}
           onSave={(params) => {
             addReminder(params);
