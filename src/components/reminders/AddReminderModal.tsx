@@ -1,3 +1,5 @@
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -16,20 +18,18 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 
-import { useReminders, type NewReminderParams, type Priority, type RepeatMode } from '@/context/RemindersContext';
-import { pad, todayISO, buildCalendarCells, DAY_NAMES_SHORT, MONTH_NAMES, dateISO } from '@/utils/helpers';
+import { CATEGORIES, type Category } from '@/constants/categories';
 import {
+  MEDICATION_DURATIONS,
+  MEDICATION_INTERVALS,
+  PRIORITY_OPTIONS,
   REMINDER_COLORS,
   REPEAT_OPTIONS,
-  PRIORITY_OPTIONS,
   SNOOZE_OPTIONS,
-  MEDICATION_INTERVALS,
-  MEDICATION_DURATIONS,
 } from '@/constants/reminderOptions';
-import { CATEGORIES, type Category } from '@/constants/categories';
+import { useReminders, type NewReminderParams, type Priority, type RepeatMode } from '@/context/RemindersContext';
+import { DAY_NAMES_SHORT, MONTH_NAMES, buildCalendarCells, dateISO, pad, todayISO } from '@/utils/helpers';
 
 // ─── Section header ───────────────────────────────────────────────────────────
 function SectionLabel({ icon, title, color = '#7C3AED' }: { icon: string; title: string; color?: string }) {
@@ -214,30 +214,30 @@ interface AddReminderModalProps {
 
 export function AddReminderModal({ visible, onClose, onSave }: AddReminderModalProps) {
   const { addMedicationReminders } = useReminders();
-  const [mode, setMode]         = useState<'normal' | 'medication'>('normal');
-  const [title, setTitle]       = useState('');
-  const [hour, setHour]         = useState(8);
-  const [minute, setMinute]     = useState(0);
-  const [ampm, setAmPm]         = useState<'AM' | 'PM'>('AM');
-  const [date, setDate]         = useState(todayISO());
-  const [color, setColor]       = useState(REMINDER_COLORS[0].hex);
-  const [repeat, setRepeat]     = useState<RepeatMode>('none');
+  const [mode, setMode] = useState<'normal' | 'medication'>('normal');
+  const [title, setTitle] = useState('');
+  const [hour, setHour] = useState(8);
+  const [minute, setMinute] = useState(0);
+  const [ampm, setAmPm] = useState<'AM' | 'PM'>('AM');
+  const [date, setDate] = useState(todayISO());
+  const [color, setColor] = useState(REMINDER_COLORS[0].hex);
+  const [repeat, setRepeat] = useState<RepeatMode>('none');
   const [priority, setPriority] = useState<Priority>('medium');
-  const [notes, setNotes]       = useState('');
-  const [snooze, setSnooze]     = useState(10);
+  const [notes, setNotes] = useState('');
+  const [snooze, setSnooze] = useState(10);
   const [category, setCategory] = useState<Category>('personal');
   const [medicationName, setMedicationName] = useState('');
-  const [dosage, setDosage]                 = useState('');
-  const [intervalHours, setIntervalHours]   = useState(8);
-  const [durationDays, setDurationDays]     = useState(5);
-  const [showAdvanced, setShowAdvanced]     = useState(false);
+  const [dosage, setDosage] = useState('');
+  const [intervalHours, setIntervalHours] = useState(8);
+  const [durationDays, setDurationDays] = useState(5);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // ── Parseador de Lenguaje Natural (NLP Básico) ──
   useEffect(() => {
-    if (showAdvanced || mode === 'medication') return; 
-    
+    if (showAdvanced || mode === 'medication') return;
+
     const t = title.toLowerCase();
-    
+
     // Fechas
     if (t.includes('mañana')) {
       const tomorrow = new Date();
@@ -254,25 +254,25 @@ export function AddReminderModal({ visible, onClose, onSave }: AddReminderModalP
       let h = parseInt(timeMatch[1], 10);
       const m = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
       let ampmVal = ampm;
-      
+
       const modifier = timeMatch[3];
       if (modifier) {
         if (modifier.includes('pm') || modifier.includes('tarde') || modifier.includes('noche')) {
-           ampmVal = 'PM';
-           if (h < 12) h += 12;
+          ampmVal = 'PM';
+          if (h < 12) h += 12;
         } else if (modifier.includes('am') || modifier.includes('mañana')) {
-           ampmVal = 'AM';
-           if (h === 12) h = 0;
+          ampmVal = 'AM';
+          if (h === 12) h = 0;
         }
       }
-      
+
       let displayH = h;
       let newAmPm: 'AM' | 'PM' = 'AM';
       if (h === 0) { displayH = 12; newAmPm = 'AM'; }
       else if (h < 12) { displayH = h; newAmPm = 'AM'; }
       else if (h === 12) { displayH = 12; newAmPm = 'PM'; }
       else { displayH = h - 12; newAmPm = 'PM'; }
-      
+
       setHour(displayH);
       setMinute(m);
       setAmPm(newAmPm);
@@ -487,16 +487,7 @@ export function AddReminderModal({ visible, onClose, onSave }: AddReminderModalP
                     <TextInput value={title} onChangeText={setTitle} placeholder="Ej: Tomar pastilla mañana a las 8pm" placeholderTextColor="#2D3748" returnKeyType="done" style={{ backgroundColor: '#0C0C20', color: '#FFF', borderRadius: 16, paddingHorizontal: 18, paddingVertical: 15, fontSize: 16, borderWidth: 1.5, borderColor: '#2A1A50' }} />
                   </Animated.View>
 
-                  {!showAdvanced ? (
-                    <Animated.View entering={FadeInDown.delay(100).springify()}>
-                      <TouchableOpacity onPress={() => setShowAdvanced(true)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 }}>
-                        <Ionicons name="chevron-down" size={16} color="#A78BFA" />
-                        <Text style={{ color: '#A78BFA', fontSize: 14, fontWeight: '700' }}>Más opciones (Fecha, Hora, Color...)</Text>
-                      </TouchableOpacity>
-                    </Animated.View>
-                  ) : (
-                    <>
-                      <Animated.View entering={FadeInDown.delay(100).springify()}>
+                  <Animated.View entering={FadeInDown.delay(80).springify()}>
                     <SectionLabel icon="time-outline" title="Hora exacta" />
                     <View style={{ flexDirection: 'row', gap: 10 }}>
                       <NumberStepper value={hour} min={1} max={12} label="Hora" onChange={setHour} />
@@ -517,68 +508,78 @@ export function AddReminderModal({ visible, onClose, onSave }: AddReminderModalP
                     </View>
                   </Animated.View>
 
-                  <Animated.View entering={FadeInDown.delay(150).springify()}>
-                    <SectionLabel icon="calendar-outline" title="Fecha" />
-                    <DatePicker value={date} onChange={setDate} />
-                  </Animated.View>
+                  {!showAdvanced ? (
+                    <Animated.View entering={FadeInDown.delay(100).springify()}>
+                      <TouchableOpacity onPress={() => setShowAdvanced(true)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 }}>
+                        <Ionicons name="chevron-down" size={16} color="#fff" opacity={0.58} />
+                        <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '700', opacity: 0.58 }}>Más opciones (Fecha, Color, Repetición...)</Text>
+                      </TouchableOpacity>
+                    </Animated.View>
+                  ) : (
+                    <>
 
-                  <Animated.View entering={FadeInDown.delay(200).springify()}>
-                    <SectionLabel icon="pricetag-outline" title="Categoría" />
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                      {CATEGORIES.map((c) => {
-                        const sel = c.value === category;
-                        return (
-                          <TouchableOpacity
-                            key={c.value}
-                            onPress={() => { Haptics.selectionAsync(); setCategory(c.value); }}
-                            style={{
-                              flexDirection: 'row', alignItems: 'center', gap: 6,
-                              paddingHorizontal: 14, paddingVertical: 9, borderRadius: 100,
-                              backgroundColor: sel ? `${c.color}22` : '#0C0C20',
-                              borderWidth: 1.5, borderColor: sel ? c.color : '#1A1A35',
-                            }}
-                          >
-                            <Ionicons name={c.icon as any} size={14} color={sel ? c.color : '#4B5563'} />
-                            <Text style={{ color: sel ? c.color : '#4B5563', fontSize: 13, fontWeight: '700' }}>{c.label}</Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  </Animated.View>
+                      <Animated.View entering={FadeInDown.delay(150).springify()}>
+                        <SectionLabel icon="calendar-outline" title="Fecha" />
+                        <DatePicker value={date} onChange={setDate} />
+                      </Animated.View>
 
-                  <Animated.View entering={FadeInDown.delay(220).springify()}>
-                    <SectionLabel icon="color-palette-outline" title="Color" />
-                    <ColorPicker value={color} onChange={setColor} />
-                  </Animated.View>
+                      <Animated.View entering={FadeInDown.delay(200).springify()}>
+                        <SectionLabel icon="pricetag-outline" title="Categoría" />
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                          {CATEGORIES.map((c) => {
+                            const sel = c.value === category;
+                            return (
+                              <TouchableOpacity
+                                key={c.value}
+                                onPress={() => { Haptics.selectionAsync(); setCategory(c.value); }}
+                                style={{
+                                  flexDirection: 'row', alignItems: 'center', gap: 6,
+                                  paddingHorizontal: 14, paddingVertical: 9, borderRadius: 100,
+                                  backgroundColor: sel ? `${c.color}22` : '#0C0C20',
+                                  borderWidth: 1.5, borderColor: sel ? c.color : '#1A1A35',
+                                }}
+                              >
+                                <Ionicons name={c.icon as any} size={14} color={sel ? c.color : '#4B5563'} />
+                                <Text style={{ color: sel ? c.color : '#4B5563', fontSize: 13, fontWeight: '700' }}>{c.label}</Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </Animated.View>
 
-                  <Animated.View entering={FadeInDown.delay(250).springify()}>
-                    <SectionLabel icon="repeat-outline" title="Repetición" />
-                    <ChipRow options={REPEAT_OPTIONS} value={repeat} onChange={setRepeat} />
-                  </Animated.View>
+                      <Animated.View entering={FadeInDown.delay(220).springify()}>
+                        <SectionLabel icon="color-palette-outline" title="Color" />
+                        <ColorPicker value={color} onChange={setColor} />
+                      </Animated.View>
 
-                  <Animated.View entering={FadeInDown.delay(300).springify()}>
-                    <SectionLabel icon="flag-outline" title="Prioridad" />
-                    <ChipRow options={PRIORITY_OPTIONS} value={priority} onChange={setPriority} />
-                  </Animated.View>
+                      <Animated.View entering={FadeInDown.delay(250).springify()}>
+                        <SectionLabel icon="repeat-outline" title="Repetición" />
+                        <ChipRow options={REPEAT_OPTIONS} value={repeat} onChange={setRepeat} />
+                      </Animated.View>
 
-                  <Animated.View entering={FadeInDown.delay(350).springify()}>
-                    <SectionLabel icon="alarm-outline" title="Posponer" />
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                      {SNOOZE_OPTIONS.map((s) => {
-                        const sel = s.value === snooze;
-                        return (
-                          <TouchableOpacity key={s.value} onPress={() => setSnooze(s.value)} style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 100, backgroundColor: sel ? '#A78BFA22' : '#0C0C20', borderWidth: 1.5, borderColor: sel ? '#A78BFA' : '#1A1A35' }}>
-                            <Text style={{ color: sel ? '#A78BFA' : '#4B5563', fontSize: 13, fontWeight: '700' }}>{s.label}</Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  </Animated.View>
+                      <Animated.View entering={FadeInDown.delay(300).springify()}>
+                        <SectionLabel icon="flag-outline" title="Prioridad" />
+                        <ChipRow options={PRIORITY_OPTIONS} value={priority} onChange={setPriority} />
+                      </Animated.View>
 
-                  <Animated.View entering={FadeInDown.delay(400).springify()}>
-                    <SectionLabel icon="document-text-outline" title="Notas (opcional)" />
-                    <TextInput value={notes} onChangeText={setNotes} placeholder="Agrega detalles adicionales..." placeholderTextColor="#2D3748" multiline numberOfLines={3} textAlignVertical="top" style={{ backgroundColor: '#0C0C20', color: '#FFF', borderRadius: 16, paddingHorizontal: 18, paddingVertical: 14, fontSize: 15, borderWidth: 1.5, borderColor: '#2A1A50', minHeight: 90 }} />
-                  </Animated.View>
+                      <Animated.View entering={FadeInDown.delay(350).springify()}>
+                        <SectionLabel icon="alarm-outline" title="Posponer" />
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                          {SNOOZE_OPTIONS.map((s) => {
+                            const sel = s.value === snooze;
+                            return (
+                              <TouchableOpacity key={s.value} onPress={() => setSnooze(s.value)} style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 100, backgroundColor: sel ? '#A78BFA22' : '#0C0C20', borderWidth: 1.5, borderColor: sel ? '#A78BFA' : '#1A1A35' }}>
+                                <Text style={{ color: sel ? '#A78BFA' : '#4B5563', fontSize: 13, fontWeight: '700' }}>{s.label}</Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </Animated.View>
+
+                      <Animated.View entering={FadeInDown.delay(400).springify()}>
+                        <SectionLabel icon="document-text-outline" title="Notas (opcional)" />
+                        <TextInput value={notes} onChangeText={setNotes} placeholder="Agrega detalles adicionales..." placeholderTextColor="#2D3748" multiline numberOfLines={3} textAlignVertical="top" style={{ backgroundColor: '#0C0C20', color: '#FFF', borderRadius: 16, paddingHorizontal: 18, paddingVertical: 14, fontSize: 15, borderWidth: 1.5, borderColor: '#2A1A50', minHeight: 90 }} />
+                      </Animated.View>
                     </>
                   )}
                 </>
