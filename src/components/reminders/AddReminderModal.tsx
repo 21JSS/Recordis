@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -231,6 +232,27 @@ export function AddReminderModal({ visible, onClose, onSave }: AddReminderModalP
   const [intervalHours, setIntervalHours] = useState(8);
   const [durationDays, setDurationDays] = useState(5);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showTimePickerAndroid, setShowTimePickerAndroid] = useState(false);
+
+  // Derivar la fecha del picker de tiempo basándonos en hour, minute y ampm
+  const pickerDate = new Date();
+  let h24 = hour;
+  if (ampm === 'PM' && h24 < 12) h24 += 12;
+  if (ampm === 'AM' && h24 === 12) h24 = 0;
+  pickerDate.setHours(h24, minute, 0, 0);
+
+  const handleTimeChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS === 'android') setShowTimePickerAndroid(false);
+    if (selectedDate) {
+      const newH = selectedDate.getHours();
+      const newM = selectedDate.getMinutes();
+      setMinute(newM);
+      if (newH === 0) { setHour(12); setAmPm('AM'); }
+      else if (newH < 12) { setHour(newH); setAmPm('AM'); }
+      else if (newH === 12) { setHour(12); setAmPm('PM'); }
+      else { setHour(newH - 12); setAmPm('PM'); }
+    }
+  };
 
   // ── Parseador de Lenguaje Natural (NLP Básico) ──
   useEffect(() => {
@@ -489,23 +511,63 @@ export function AddReminderModal({ visible, onClose, onSave }: AddReminderModalP
 
                   <Animated.View entering={FadeInDown.delay(80).springify()}>
                     <SectionLabel icon="time-outline" title="Hora exacta" />
-                    <View style={{ flexDirection: 'row', gap: 10 }}>
-                      <NumberStepper value={hour} min={1} max={12} label="Hora" onChange={setHour} />
-                      <View style={{ justifyContent: 'center', paddingTop: 28 }}><Text style={{ color: '#A78BFA', fontSize: 28, fontWeight: '900' }}>:</Text></View>
-                      <NumberStepper value={minute} min={0} max={59} label="Min" onChange={setMinute} />
-                      <View style={{ flex: 1, alignItems: 'center' }}>
-                        <Text style={{ color: '#4B5563', fontSize: 10, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>Período</Text>
-                        <TouchableOpacity onPress={() => setAmPm(a => a === 'AM' ? 'PM' : 'AM')} style={{ flex: 1, width: '100%', backgroundColor: '#4C1D95', borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#7C3AED', minHeight: 96 }}>
-                          <Text style={{ color: '#FFF', fontSize: 22, fontWeight: '900' }}>{ampm}</Text>
-                          <Text style={{ color: '#C084FC', fontSize: 9, marginTop: 2 }}>toca</Text>
-                        </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+                      <TouchableOpacity onPress={() => { setHour(9); setMinute(0); setAmPm('AM'); }} style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 100, backgroundColor: '#0C0C20', borderWidth: 1.5, borderColor: '#A78BFA' }}>
+                        <Text style={{ color: '#A78BFA', fontSize: 13, fontWeight: '700' }}>Mañana (9:00 AM)</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => { setHour(2); setMinute(0); setAmPm('PM'); }} style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 100, backgroundColor: '#0C0C20', borderWidth: 1.5, borderColor: '#A78BFA' }}>
+                        <Text style={{ color: '#A78BFA', fontSize: 13, fontWeight: '700' }}>Tarde (2:00 PM)</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => { setHour(8); setMinute(0); setAmPm('PM'); }} style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 100, backgroundColor: '#0C0C20', borderWidth: 1.5, borderColor: '#A78BFA' }}>
+                        <Text style={{ color: '#A78BFA', fontSize: 13, fontWeight: '700' }}>Noche (8:00 PM)</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+                      <TouchableOpacity onPress={() => { setHour(9); setMinute(0); setAmPm('AM'); }} style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 100, backgroundColor: '#0C0C20', borderWidth: 1.5, borderColor: '#A78BFA' }}>
+                        <Text style={{ color: '#A78BFA', fontSize: 13, fontWeight: '700' }}>Mañana (9:00 AM)</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => { setHour(2); setMinute(0); setAmPm('PM'); }} style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 100, backgroundColor: '#0C0C20', borderWidth: 1.5, borderColor: '#A78BFA' }}>
+                        <Text style={{ color: '#A78BFA', fontSize: 13, fontWeight: '700' }}>Tarde (2:00 PM)</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => { setHour(8); setMinute(0); setAmPm('PM'); }} style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 100, backgroundColor: '#0C0C20', borderWidth: 1.5, borderColor: '#A78BFA' }}>
+                        <Text style={{ color: '#A78BFA', fontSize: 13, fontWeight: '700' }}>Noche (8:00 PM)</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {Platform.OS === 'ios' ? (
+                      <View style={{ backgroundColor: '#1A1A35', borderRadius: 16, overflow: 'hidden' }}>
+                        <DateTimePicker
+                          value={pickerDate}
+                          mode="time"
+                          display="spinner"
+                          textColor="#FFFFFF"
+                          onChange={handleTimeChange}
+                        />
                       </View>
-                    </View>
-                    {/* Time preview */}
-                    <View style={{ backgroundColor: '#0C0C20', borderRadius: 14, paddingVertical: 12, alignItems: 'center', marginTop: 14, borderWidth: 1, borderColor: '#2A1A50', flexDirection: 'row', justifyContent: 'center', gap: 8 }}>
-                      <Ionicons name="time" size={18} color="#6B7280" />
-                      <Text style={{ color, fontSize: 32, fontWeight: '900', letterSpacing: 2 }}>{pad(hour)}:{pad(minute)} {ampm}</Text>
-                    </View>
+                    ) : (
+                      <>
+                        <TouchableOpacity 
+                          onPress={() => setShowTimePickerAndroid(true)} 
+                          style={{ backgroundColor: '#0C0C20', borderRadius: 14, paddingVertical: 18, alignItems: 'center', borderWidth: 1.5, borderColor: '#2A1A50' }}
+                        >
+                           <Text style={{ color: '#FFF', fontSize: 32, fontWeight: '900', letterSpacing: 2 }}>{pad(hour)}:{pad(minute)} {ampm}</Text>
+                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
+                             <Ionicons name="time" size={14} color="#A78BFA" />
+                             <Text style={{ color: '#A78BFA', fontSize: 13, fontWeight: '700' }}>Toca para cambiar la hora</Text>
+                           </View>
+                        </TouchableOpacity>
+                        
+                        {showTimePickerAndroid && (
+                          <DateTimePicker
+                            value={pickerDate}
+                            mode="time"
+                            display="default"
+                            onChange={handleTimeChange}
+                          />
+                        )}
+                      </>
+                    )}
                   </Animated.View>
 
                   {!showAdvanced ? (

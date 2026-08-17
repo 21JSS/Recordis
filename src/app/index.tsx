@@ -39,17 +39,20 @@ import { FAB } from '@/components/home/FAB';
 
 import { CATEGORIES, type Category } from '@/constants/categories';
 import { useReminders, type Reminder } from '@/context/RemindersContext';
-import { getLiveTime } from '@/utils/helpers';
+import { getLiveTime, todayISO } from '@/utils/helpers';
 
 // ─── Alarm sound ──────────────────────────────────────────────────────────────
 const ALARM_SOURCE = require('../../assets/audio/alarm.ogg');
 
 const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
 
-// ─── Premium Purple & Black Theme ───────────────────────────────────────────
-function getGradientColors(): readonly [string, string] {
+// ─── Premium Themes (Day / Night) ───────────────────────────────────────────
+function getGradientColors(isDaytime: boolean): readonly [string, string] {
+  if (isDaytime) {
+    // A vibrant sunrise/sunset warm gradient for the day
+    return ['#FF7E5F', '#FEB47B'];
+  }
   // A meticulously designed, elegant dark purple fading into absolute deep black.
-  // This provides a highly premium aesthetic while maintaining perfect contrast.
   return ['#2C1259', '#04010A'];
 }
 
@@ -172,6 +175,10 @@ export default function HomeScreen() {
 
   // ── Filter, search, and sort ──
   const activeCount = reminders.filter((r) => r.active && !r.completedAt).length;
+  
+  const todayStr = todayISO();
+  const totalTodayCount = reminders.filter(r => r.date === todayStr || r.repeat !== 'none').length;
+  const completedTodayCount = reminders.filter(r => r.completedAt && r.completedAt.startsWith(todayStr)).length;
 
   let filtered = reminders;
 
@@ -204,7 +211,12 @@ export default function HomeScreen() {
     prevActiveCount.current = activeCount;
   }, [activeCount]);
 
-  const bgColors = getGradientColors();
+  const isDaytime = useMemo(() => {
+    const h = new Date().getHours();
+    return h >= 6 && h < 18;
+  }, [liveTime]);
+
+  const bgColors = getGradientColors(isDaytime);
 
   return (
     <View style={{ flex: 1, backgroundColor: bgColors[0] }}>
@@ -222,11 +234,13 @@ export default function HomeScreen() {
           translucent={true}
         />
 
-        {/* ── Encabezado principal (Saludo, Clima, Reloj) ── */}
+        {/* ── Encabezado principal (Saludo, Clima, Reloj, Progreso) ── */}
         <HomeHeader
           weather={weather}
           liveTime={liveTime}
           activeCount={activeCount}
+          totalTodayCount={totalTodayCount}
+          completedTodayCount={completedTodayCount}
         />
 
         {/* ── Barra de Búsqueda ── */}

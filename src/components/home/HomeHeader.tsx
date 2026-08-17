@@ -19,19 +19,26 @@ interface HomeHeaderProps {
   weather: { temp: string; icon: keyof typeof Ionicons.glyphMap };
   liveTime: string;
   activeCount: number;
+  totalTodayCount: number;
+  completedTodayCount: number;
 }
 
 export function HomeHeader({
   weather,
   liveTime,
   activeCount,
+  totalTodayCount,
+  completedTodayCount,
 }: HomeHeaderProps) {
   
   const dailyQuote = React.useMemo(() => INSPIRATIONAL_QUOTES[Math.floor(Math.random() * INSPIRATIONAL_QUOTES.length)], []);
 
+  // Calcular progreso (0 a 1)
+  const progress = totalTodayCount === 0 ? 0 : (completedTodayCount / totalTodayCount);
+  const progressPercent = Math.round(progress * 100);
+  
   return (
     <Animated.View
-      // Animación de entrada: el encabezado baja flotando desde arriba
       entering={FadeInDown.duration(550).springify()}
       style={{
         paddingHorizontal: 24,
@@ -61,15 +68,36 @@ export function HomeHeader({
         </View>
       </View>
 
-      {/* ── Fila 2: Título Principal ── */}
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
-        <View>
+      {/* ── Fila 2: Título Principal y Progreso Diario ── */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <View style={{ flex: 1, paddingRight: 12 }}>
           <Text style={{ color: '#FFFFFF', fontSize: 28, fontWeight: '900', letterSpacing: -0.5 }}>
             Mis Recordatorios
           </Text>
           <Text style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: 13, fontWeight: '600', marginTop: 2, fontStyle: 'italic' }}>
             "{dailyQuote}"
           </Text>
+        </View>
+        
+        {/* Progreso Diario (Anillo simulado con bordes) */}
+        <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{
+            width: 50, height: 50, borderRadius: 25, 
+            borderWidth: 4, borderColor: '#1A1A2E',
+            alignItems: 'center', justifyContent: 'center'
+          }}>
+            <View style={{
+               position: 'absolute', width: 50, height: 50, borderRadius: 25,
+               borderWidth: 4, borderColor: '#10B981',
+               opacity: progress > 0 ? (progressPercent / 100) : 0,
+               borderTopColor: progress > 0.25 ? '#10B981' : 'transparent',
+               borderRightColor: progress > 0.50 ? '#10B981' : 'transparent',
+               borderBottomColor: progress > 0.75 ? '#10B981' : 'transparent',
+               borderLeftColor: progress === 1 ? '#10B981' : 'transparent',
+               transform: [{ rotate: '45deg' }]
+            }} />
+            <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '800' }}>{progressPercent}%</Text>
+          </View>
         </View>
       </View>
 

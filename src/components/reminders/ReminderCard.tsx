@@ -279,6 +279,16 @@ export function ReminderCard({ reminder, index, onToggle, onDelete, onEdit, onCo
                   </Text>
                 </View>
 
+                {/* Streak Badge */}
+                {reminder.streak !== undefined && reminder.streak > 0 && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FF8A0015', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3, borderWidth: 1, borderColor: '#FF8A0030' }}>
+                    <Text style={{ fontSize: 11 }}>🔥</Text>
+                    <Text style={{ color: '#FF8A00', fontSize: 11, fontWeight: '800' }}>
+                      {reminder.streak}
+                    </Text>
+                  </View>
+                )}
+
                 {/* Medication Badge */}
                 {reminder.isMedication && (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#06202A', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3, borderWidth: 1, borderColor: '#0E4455' }}>

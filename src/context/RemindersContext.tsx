@@ -36,6 +36,7 @@ export interface Reminder {
   category: Category;      // personal, trabajo, salud, escuela, otro
   // ── Completed ──
   completedAt?: string;    // ISO timestamp when completed
+  streak?: number;         // number of consecutive times completed
   // ── Medication fields ──
   isMedication?: boolean;
   medicationName?: string;
@@ -97,7 +98,16 @@ export function todayISO() {
 
 /** Given a reminder, determine if it should ring right now */
 function shouldRing(r: Reminder, h: number, m: number, today: string): boolean {
-  if (!r.active || r.ringing || r.completedAt) return false;
+  if (!r.active || r.ringing) return false;
+  
+  // Si fue completado HOY, no suena hoy. Si fue completado otro día (ayer), sí debe sonar si toca hoy.
+  if (r.completedAt) {
+    const completedDay = r.completedAt.split('T')[0];
+    if (completedDay === today) return false;
+    // Si no es repetitivo y ya se completó alguna vez, tampoco suena nunca más
+    if (r.repeat === 'none') return false;
+  }
+
   if (r.hour !== h || r.minute !== m) return false;
 
   switch (r.repeat) {
@@ -168,8 +178,9 @@ export function RemindersProvider({ children }: { children: React.ReactNode }) {
 
   // Persist reminders whenever they change (after initial load)
   useEffect(() => {
-    if (!loaded) return;
-    saveReminders(reminders);
+    if (loaded) {
+      saveReminders(reminders);
+    }
   }, [reminders, loaded]);
 
   // Tick every 10 s — check for due reminders (in-app alarm overlay)
@@ -292,12 +303,23 @@ export function RemindersProvider({ children }: { children: React.ReactNode }) {
     setReminders((prev) =>
       prev.map((r) => {
         if (r.id !== id) return r;
-        const isCompleting = !r.completedAt;
+        const isCompleting = !r.completedAt || r.completedAt.split('T')[0] !== new Date().toISOString().split('T')[0];
+        
         const updated = {
           ...r,
           completedAt: isCompleting ? new Date().toISOString() : undefined,
           ringing: false,
         };
+
+        // --- Sistema de Rachas (Streaks) ---
+        if (r.repeat !== 'none') {
+          if (isCompleting) {
+            updated.streak = (r.streak || 0) + 1;
+          } else if (updated.streak && updated.streak > 0) {
+            updated.streak = updated.streak - 1;
+          }
+        }
+
         if (isCompleting) {
           cancelReminderNotification(id);
         } else if (updated.active) {
