@@ -17,16 +17,16 @@ export function SearchBar({ searchQuery, setSearchQuery }: SearchBarProps) {
     >
       <View style={{
         flexDirection: 'row', alignItems: 'center', gap: 10,
-        backgroundColor: '#111128',
+        backgroundColor: 'rgba(255,255,255,0.05)',
         borderRadius: 18,
         paddingHorizontal: 16,
         // En iOS necesitamos más padding vertical para que el texto no se corte
         paddingVertical: Platform.OS === 'ios' ? 12 : 4,
-        borderWidth: 1.5,
-        borderColor: searchQuery ? '#7C3AED' : '#1A1A35', // Si hay búsqueda, resalta en morado
+        borderWidth: 1,
+        borderColor: searchQuery ? '#FFFFFF' : 'rgba(255,255,255,0.1)', // Si hay búsqueda, resalta en blanco
       }}>
         {/* Ícono de la lupa */}
-        <Ionicons name="search" size={18} color={searchQuery ? '#A78BFA' : '#4B5563'} />
+        <Ionicons name="search" size={18} color={searchQuery ? '#FFFFFF' : '#4B5563'} />
         
         {/* ── Input de Texto ── */}
         <TextInput

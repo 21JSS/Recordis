@@ -11,6 +11,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import * as Haptics from 'expo-haptics';
 import { BellIcon } from '@/components/icons/AppIcons';
@@ -54,8 +56,8 @@ function DeleteAction() {
       justifyContent: 'center',
       alignItems: 'center',
       width: 90,
-      marginBottom: 12,
       marginLeft: 8,
+      height: '100%',
     }}>
       <Ionicons name="trash-outline" size={24} color="#FFF" />
       <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '700', marginTop: 4 }}>Eliminar</Text>
@@ -71,8 +73,8 @@ function CompleteAction({ isCompleted }: { isCompleted: boolean }) {
       justifyContent: 'center',
       alignItems: 'center',
       width: 90,
-      marginBottom: 12,
       marginRight: 8,
+      height: '100%',
     }}>
       <Ionicons name={isCompleted ? 'refresh-outline' : 'checkmark-circle-outline'} size={24} color="#FFF" />
       <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '700', marginTop: 4 }}>
@@ -165,7 +167,7 @@ export function ReminderCard({ reminder, index, onToggle, onDelete, onEdit, onCo
   return (
     <Animated.View
       entering={FadeInDown.delay(index * 65).springify().damping(16)}
-      style={cardStyle}
+      style={[cardStyle, { marginBottom: 12 }]}
     >
       <Swipeable
         ref={swipeableRef}
@@ -178,38 +180,66 @@ export function ReminderCard({ reminder, index, onToggle, onDelete, onEdit, onCo
         overshootRight={false}
         overshootLeft={false}
       >
-        <View
-          style={{
-            borderRadius: 22,
-            marginBottom: 12,
-            overflow: 'hidden',
-            shadowColor: reminder.ringing ? color : '#000',
-            shadowOffset: { width: 0, height: reminder.ringing ? 8 : 3 },
-            shadowOpacity: reminder.ringing ? 0.45 : 0.10,
-            shadowRadius: reminder.ringing ? 22 : 6,
-            elevation: reminder.ringing ? 14 : 3,
-          }}
-        >
-          {/* Color accent bar on the left */}
+        <View style={{ borderRadius: 22, position: 'relative' }}>
+          {/* ── Neon Glow using LinearGradient for perfect Android/iOS spread ── */}
+          {!(dim || isCompleted) && (
+            <LinearGradient
+              colors={[color, `${color}00`]}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={{
+                position: 'absolute',
+                left: -18,
+                top: 4,
+                bottom: 4,
+                width: 36,
+                borderRadius: 18,
+                opacity: reminder.ringing ? 1 : 0.85,
+                zIndex: 10,
+              }}
+            />
+          )}
+
+          {/* Color accent bar OUTSIDE BlurView so its glow can spread freely */}
           <View
             style={{
               position: 'absolute',
               left: 0, top: 0, bottom: 0,
-              width: 4,
-              backgroundColor: dim || isCompleted ? '#1A1A30' : color,
+              width: 12,
+              backgroundColor: dim || isCompleted ? 'rgba(255,255,255,0.1)' : color,
               borderTopLeftRadius: 22,
               borderBottomLeftRadius: 22,
+              shadowColor: dim || isCompleted ? 'transparent' : color,
+              shadowOffset: { width: -2, height: 0 },
+              shadowOpacity: 1,
+              shadowRadius: 20,
+              elevation: 16,
+              zIndex: 20,
             }}
           />
 
+          <BlurView
+            intensity={30}
+            tint="dark"
+            style={{
+              borderRadius: 22,
+              overflow: 'hidden',
+              shadowColor: reminder.ringing ? color : '#000',
+              shadowOffset: { width: 0, height: reminder.ringing ? 8 : 4 },
+              shadowOpacity: reminder.ringing ? 0.6 : 0.25,
+              shadowRadius: reminder.ringing ? 22 : 8,
+              elevation: reminder.ringing ? 14 : 5,
+              borderWidth: 1.5,
+              borderColor: reminder.ringing ? color : 'rgba(255,255,255,0.1)',
+            }}
+          >
+
           <View
             style={{
-              backgroundColor: reminder.ringing ? '#14082A' : isCompleted ? '#0A0F0A' : dim ? '#0C0C1C' : '#111128',
-              borderWidth: 1.5,
-              borderColor: reminder.ringing ? color : isCompleted ? '#1A3A1A' : dim ? '#161630' : '#1E1A40',
+              backgroundColor: reminder.ringing ? `${color}15` : 'rgba(0,0,0,0.2)',
               borderRadius: 22,
               padding: 16,
-              paddingLeft: 20,
+              paddingLeft: 28, // Incremented to account for the wider bar outside
               flexDirection: 'row',
               alignItems: 'center',
             }}
@@ -330,12 +360,13 @@ export function ReminderCard({ reminder, index, onToggle, onDelete, onEdit, onCo
 
               {/* Notes preview */}
               {!!reminder.notes && (
-                <Text numberOfLines={1} style={{ color: '#374151', fontSize: 12, marginTop: 6 }}>
+                <Text numberOfLines={1} style={{ color: '#9CA3AF', fontSize: 12, marginTop: 6 }}>
                   {reminder.notes}
                 </Text>
               )}
             </View>
           </View>
+        </BlurView>
         </View>
       </Swipeable>
     </Animated.View>

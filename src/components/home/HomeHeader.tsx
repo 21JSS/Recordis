@@ -59,7 +59,7 @@ export function HomeHeader({
 
         <View style={{
           flexDirection: 'row', alignItems: 'center', gap: 6,
-          backgroundColor: '#1A1A2E', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16,
+          backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16,
         }}>
           <Ionicons name={weather.icon} size={15} color="#FBBF24" />
           <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '700' }}>
@@ -81,22 +81,17 @@ export function HomeHeader({
         
         {/* Progreso Diario (Anillo simulado con bordes) */}
         <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-          <View style={{
-            width: 50, height: 50, borderRadius: 25, 
-            borderWidth: 4, borderColor: '#1A1A2E',
-            alignItems: 'center', justifyContent: 'center'
-          }}>
-            <View style={{
-               position: 'absolute', width: 50, height: 50, borderRadius: 25,
-               borderWidth: 4, borderColor: '#10B981',
-               opacity: progress > 0 ? (progressPercent / 100) : 0,
-               borderTopColor: progress > 0.25 ? '#10B981' : 'transparent',
-               borderRightColor: progress > 0.50 ? '#10B981' : 'transparent',
-               borderBottomColor: progress > 0.75 ? '#10B981' : 'transparent',
-               borderLeftColor: progress === 1 ? '#10B981' : 'transparent',
-               transform: [{ rotate: '45deg' }]
+          <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ position: 'absolute', width: '100%', height: '100%', borderRadius: 22,
+               borderWidth: 4, borderColor: '#FFFFFF',
+               opacity: 0.8,
+               borderTopColor: progress > 0.25 ? '#FFFFFF' : 'transparent',
+               borderRightColor: progress > 0.50 ? '#FFFFFF' : 'transparent',
+               borderBottomColor: progress > 0.75 ? '#FFFFFF' : 'transparent',
+               borderLeftColor: progress === 1 ? '#FFFFFF' : 'transparent',
+               transform: [{ rotate: '-45deg' }]
             }} />
-            <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '800' }}>{progressPercent}%</Text>
+            <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '800' }}>{progressPercent}%</Text>
           </View>
         </View>
       </View>
@@ -110,13 +105,13 @@ export function HomeHeader({
           </Text>
         </View>
         <View style={{
-          backgroundColor: '#160D35', borderRadius: 20,
+          backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 20,
           paddingHorizontal: 12, paddingVertical: 5,
-          borderWidth: 1, borderColor: '#2D1F5E',
+          borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
           flexDirection: 'row', alignItems: 'center', gap: 6,
         }}>
-          <Ionicons name="alarm-outline" size={19} color="#C084FC" />
-          <Text style={{ color: '#C084FC', fontSize: 13, fontWeight: '700' }}>
+          <Ionicons name="alarm-outline" size={19} color="#FFFFFF" />
+          <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700' }}>
             {activeCount} activos
           </Text>
         </View>

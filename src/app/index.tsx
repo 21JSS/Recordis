@@ -48,12 +48,8 @@ const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
 
 // ─── Premium Themes (Day / Night) ───────────────────────────────────────────
 function getGradientColors(isDaytime: boolean): readonly [string, string] {
-  if (isDaytime) {
-    // A vibrant sunrise/sunset warm gradient for the day
-    return ['#FF7E5F', '#FEB47B'];
-  }
-  // A meticulously designed, elegant dark purple fading into absolute deep black.
-  return ['#2C1259', '#04010A'];
+  // Original deep purple theme
+  return ['#1A0B2E', '#0B0514'];
 }
 
 
@@ -307,10 +303,12 @@ export default function HomeScreen() {
           )}
         </ScrollView>
         {/* ── Botón Flotante Animado ── */}
-        <FAB
-          fabBottom={fabBottom}
-          onPress={() => setShowModal(true)}
-        />
+        {!showModal && !editingReminder && (
+          <FAB
+            fabBottom={fabBottom}
+            onPress={() => setShowModal(true)}
+          />
+        )}
 
         {/* ── Add Reminder Modal (Progressive Disclosure) ── */}
         <AddReminderModal

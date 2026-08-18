@@ -23,6 +23,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { BlurView } from 'expo-blur';
 
 import type { Reminder, NewReminderParams, Priority, RepeatMode } from '@/context/RemindersContext';
 import { pad, todayISO, buildCalendarCells, DAY_NAMES_SHORT, MONTH_NAMES, dateISO } from '@/utils/helpers';
@@ -60,7 +61,7 @@ function NumberStepper({
       <Text style={{ color: '#4B5563', fontSize: 10, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>
         {label}
       </Text>
-      <View style={{ backgroundColor: '#0C0C20', borderRadius: 14, borderWidth: 1.5, borderColor: `${color}44`, overflow: 'hidden', width: '100%' }}>
+      <View style={{ backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 14, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.1)', overflow: 'hidden', width: '100%' }}>
         <TouchableOpacity onPress={() => onChange(value >= max ? min : value + 1)} style={{ paddingVertical: 9, alignItems: 'center' }}>
           <Ionicons name="chevron-up" size={18} color={color} />
         </TouchableOpacity>
@@ -75,7 +76,7 @@ function NumberStepper({
           keyboardType="number-pad"
           maxLength={2}
           selectTextOnFocus
-          style={{ color: '#FFF', fontSize: 26, fontWeight: '900', textAlign: 'center', paddingVertical: 8, backgroundColor: '#16163A' }}
+          style={{ color: '#FFF', fontSize: 26, fontWeight: '900', textAlign: 'center', paddingVertical: 8, backgroundColor: 'rgba(0,0,0,0.2)' }}
         />
         <TouchableOpacity onPress={() => onChange(value <= min ? max : value - 1)} style={{ paddingVertical: 9, alignItems: 'center' }}>
           <Ionicons name="chevron-down" size={18} color={color} />
@@ -100,15 +101,15 @@ function DatePicker({ value, onChange }: { value: string; onChange: (d: string) 
   const cells = buildCalendarCells(year, month);
 
   return (
-    <View style={{ backgroundColor: '#0C0C20', borderRadius: 16, borderWidth: 1.5, borderColor: '#7C3AED44', padding: 14, paddingBottom: 18 }}>
+    <View style={{ backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 16, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.1)', padding: 14, paddingBottom: 18 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <TouchableOpacity onPress={() => setViewDate(new Date(year, month - 1, 1))} style={{ padding: 8, backgroundColor: '#16163A', borderRadius: 12 }}>
+        <TouchableOpacity onPress={() => setViewDate(new Date(year, month - 1, 1))} style={{ padding: 8, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
           <Ionicons name="chevron-back" size={20} color="#7C3AED" />
         </TouchableOpacity>
         <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '800' }}>
           {MONTH_NAMES[month]} {year}
         </Text>
-        <TouchableOpacity onPress={() => setViewDate(new Date(year, month + 1, 1))} style={{ padding: 8, backgroundColor: '#16163A', borderRadius: 12 }}>
+        <TouchableOpacity onPress={() => setViewDate(new Date(year, month + 1, 1))} style={{ padding: 8, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
           <Ionicons name="chevron-forward" size={20} color="#7C3AED" />
         </TouchableOpacity>
       </View>
@@ -133,7 +134,7 @@ function DatePicker({ value, onChange }: { value: string; onChange: (d: string) 
                   onPress={() => onChange(cellIso)}
                   style={{
                     flex: 1, height: 40, alignItems: 'center', justifyContent: 'center',
-                    backgroundColor: selected ? '#7C3AED' : isToday ? '#7C3AED33' : '#111128',
+                    backgroundColor: selected ? '#7C3AED' : isToday ? '#7C3AED33' : 'rgba(255,255,255,0.03)',
                     borderRadius: 12,
                     borderWidth: 1.5, borderColor: selected ? '#FFF' : isToday ? '#7C3AED' : 'transparent',
                   }}
@@ -182,8 +183,8 @@ function ChipRow<T extends string>({ options, value, onChange }: {
             style={{
               flexDirection: 'row', alignItems: 'center', gap: 6,
               paddingHorizontal: 14, paddingVertical: 9, borderRadius: 100,
-              backgroundColor: selected ? `${color}22` : '#0C0C20',
-              borderWidth: 1.5, borderColor: selected ? color : '#1A1A35',
+              backgroundColor: selected ? `${color}22` : 'rgba(0,0,0,0.3)',
+              borderWidth: 1.5, borderColor: selected ? color : 'rgba(255,255,255,0.1)',
             }}
           >
             <Ionicons name={o.icon as any} size={14} color={selected ? color : '#4B5563'} />
@@ -257,14 +258,19 @@ export function EditReminderModal({ visible, reminder, onClose, onSave }: EditRe
             activeOpacity={1}
             onPress={onClose}
           />
-          <View style={{
-            backgroundColor: '#09091E',
-            borderTopLeftRadius: 32,
-            borderTopRightRadius: 32,
-            borderTopWidth: 1.5,
-            borderColor: '#2A1A50',
-            maxHeight: '92%',
-          }}>
+          <BlurView
+            intensity={40}
+            tint="dark"
+            style={{
+              backgroundColor: 'rgba(9, 9, 30, 0.65)',
+              borderTopLeftRadius: 32,
+              borderTopRightRadius: 32,
+              borderTopWidth: 1.5,
+              borderColor: 'rgba(255,255,255,0.15)',
+              maxHeight: '92%',
+              overflow: 'hidden',
+            }}
+          >
             {/* Drag Handle */}
             <View style={{ alignItems: 'center', paddingTop: 14, paddingBottom: 6 }}>
               <View style={{ width: 44, height: 5, borderRadius: 3, backgroundColor: '#3A2A60' }} />
@@ -295,12 +301,12 @@ export function EditReminderModal({ visible, reminder, onClose, onSave }: EditRe
               scrollEventThrottle={16}
               overScrollMode="always"
               bounces={Platform.OS === 'ios'}
-              contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 48 : 36, gap: 24 }}
+              contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 80 : 80, gap: 24 }}
             >
               {/* Name */}
               <Animated.View entering={FadeInDown.delay(50).springify()}>
                 <SectionLabel icon="pencil-outline" title="Nombre" />
-                <TextInput value={title} onChangeText={setTitle} placeholder="¿Qué tienes que hacer?" placeholderTextColor="#2D3748" returnKeyType="done" style={{ backgroundColor: '#0C0C20', color: '#FFF', borderRadius: 16, paddingHorizontal: 18, paddingVertical: 15, fontSize: 16, borderWidth: 1.5, borderColor: '#2A1A50' }} />
+                <TextInput value={title} onChangeText={setTitle} placeholder="¿Qué tienes que hacer?" placeholderTextColor="#2D3748" returnKeyType="done" style={{ backgroundColor: 'rgba(0,0,0,0.3)', color: '#FFF', borderRadius: 16, paddingHorizontal: 18, paddingVertical: 15, fontSize: 16, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.1)' }} />
               </Animated.View>
 
               {/* Time */}
@@ -339,8 +345,8 @@ export function EditReminderModal({ visible, reminder, onClose, onSave }: EditRe
                         style={{
                           flexDirection: 'row', alignItems: 'center', gap: 6,
                           paddingHorizontal: 14, paddingVertical: 9, borderRadius: 100,
-                          backgroundColor: sel ? `${c.color}22` : '#0C0C20',
-                          borderWidth: 1.5, borderColor: sel ? c.color : '#1A1A35',
+                          backgroundColor: sel ? `${c.color}22` : 'rgba(0,0,0,0.3)',
+                          borderWidth: 1.5, borderColor: sel ? c.color : 'rgba(255,255,255,0.1)',
                         }}
                       >
                         <Ionicons name={c.icon as any} size={14} color={sel ? c.color : '#4B5563'} />
@@ -380,7 +386,7 @@ export function EditReminderModal({ visible, reminder, onClose, onSave }: EditRe
                   {SNOOZE_OPTIONS.map((s) => {
                     const sel = s.value === snooze;
                     return (
-                      <TouchableOpacity key={s.value} onPress={() => setSnooze(s.value)} style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 100, backgroundColor: sel ? '#A78BFA22' : '#0C0C20', borderWidth: 1.5, borderColor: sel ? '#A78BFA' : '#1A1A35' }}>
+                      <TouchableOpacity key={s.value} onPress={() => setSnooze(s.value)} style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 100, backgroundColor: sel ? '#A78BFA22' : 'rgba(0,0,0,0.3)', borderWidth: 1.5, borderColor: sel ? '#A78BFA' : 'rgba(255,255,255,0.1)' }}>
                         <Text style={{ color: sel ? '#A78BFA' : '#4B5563', fontSize: 13, fontWeight: '700' }}>{s.label}</Text>
                       </TouchableOpacity>
                     );
@@ -391,7 +397,7 @@ export function EditReminderModal({ visible, reminder, onClose, onSave }: EditRe
               {/* Notes */}
               <Animated.View entering={FadeInDown.delay(400).springify()}>
                 <SectionLabel icon="document-text-outline" title="Notas (opcional)" />
-                <TextInput value={notes} onChangeText={setNotes} placeholder="Agrega detalles adicionales..." placeholderTextColor="#2D3748" multiline numberOfLines={3} textAlignVertical="top" style={{ backgroundColor: '#0C0C20', color: '#FFF', borderRadius: 16, paddingHorizontal: 18, paddingVertical: 14, fontSize: 15, borderWidth: 1.5, borderColor: '#2A1A50', minHeight: 90 }} />
+                <TextInput value={notes} onChangeText={setNotes} placeholder="Agrega detalles adicionales..." placeholderTextColor="#2D3748" multiline numberOfLines={3} textAlignVertical="top" style={{ backgroundColor: 'rgba(0,0,0,0.3)', color: '#FFF', borderRadius: 16, paddingHorizontal: 18, paddingVertical: 14, fontSize: 15, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.1)', minHeight: 90 }} />
               </Animated.View>
 
               {/* Save button */}
@@ -416,7 +422,7 @@ export function EditReminderModal({ visible, reminder, onClose, onSave }: EditRe
                 </TouchableOpacity>
               </Animated.View>
             </ScrollView>
-          </View>
+          </BlurView>
         </View>
       </KeyboardAvoidingView>
     </Modal>

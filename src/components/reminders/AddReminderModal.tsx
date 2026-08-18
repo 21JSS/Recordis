@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { BlurView } from 'expo-blur';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useEffect, useState } from 'react';
 import {
@@ -58,7 +59,7 @@ function NumberStepper({
       <Text style={{ color: '#4B5563', fontSize: 10, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>
         {label}
       </Text>
-      <View style={{ backgroundColor: '#0C0C20', borderRadius: 14, borderWidth: 1.5, borderColor: `${color}44`, overflow: 'hidden', width: '100%' }}>
+      <View style={{ backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 14, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.1)', overflow: 'hidden', width: '100%' }}>
         <TouchableOpacity onPress={() => onChange(value >= max ? min : value + 1)} style={{ paddingVertical: 9, alignItems: 'center' }}>
           <Ionicons name="chevron-up" size={18} color={color} />
         </TouchableOpacity>
@@ -73,7 +74,7 @@ function NumberStepper({
           keyboardType="number-pad"
           maxLength={2}
           selectTextOnFocus
-          style={{ color: '#FFF', fontSize: 26, fontWeight: '900', textAlign: 'center', paddingVertical: 8, backgroundColor: '#16163A' }}
+          style={{ color: '#FFF', fontSize: 26, fontWeight: '900', textAlign: 'center', paddingVertical: 8, backgroundColor: 'rgba(0,0,0,0.2)' }}
         />
         <TouchableOpacity onPress={() => onChange(value <= min ? max : value - 1)} style={{ paddingVertical: 9, alignItems: 'center' }}>
           <Ionicons name="chevron-down" size={18} color={color} />
@@ -98,16 +99,16 @@ function DatePicker({ value, onChange, accentColor = '#7C3AED' }: { value: strin
   const cells = buildCalendarCells(year, month);
 
   return (
-    <View style={{ backgroundColor: '#0C0C20', borderRadius: 16, borderWidth: 1.5, borderColor: `${accentColor}44`, padding: 14, paddingBottom: 18 }}>
+    <View style={{ backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 16, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.1)', padding: 14, paddingBottom: 18 }}>
       {/* Header */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <TouchableOpacity onPress={() => setViewDate(new Date(year, month - 1, 1))} style={{ padding: 8, backgroundColor: '#16163A', borderRadius: 12 }}>
+        <TouchableOpacity onPress={() => setViewDate(new Date(year, month - 1, 1))} style={{ padding: 8, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
           <Ionicons name="chevron-back" size={20} color={accentColor} />
         </TouchableOpacity>
         <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '800', textTransform: 'capitalize' }}>
           {MONTH_NAMES[month]} {year}
         </Text>
-        <TouchableOpacity onPress={() => setViewDate(new Date(year, month + 1, 1))} style={{ padding: 8, backgroundColor: '#16163A', borderRadius: 12 }}>
+        <TouchableOpacity onPress={() => setViewDate(new Date(year, month + 1, 1))} style={{ padding: 8, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
           <Ionicons name="chevron-forward" size={20} color={accentColor} />
         </TouchableOpacity>
       </View>
@@ -134,7 +135,7 @@ function DatePicker({ value, onChange, accentColor = '#7C3AED' }: { value: strin
                   onPress={() => onChange(cellIso)}
                   style={{
                     flex: 1, height: 40, alignItems: 'center', justifyContent: 'center',
-                    backgroundColor: selected ? accentColor : isToday ? `${accentColor}33` : '#111128',
+                    backgroundColor: selected ? accentColor : isToday ? `${accentColor}33` : 'rgba(255,255,255,0.03)',
                     borderRadius: 12,
                     borderWidth: 1.5, borderColor: selected ? '#FFF' : isToday ? accentColor : 'transparent',
                   }}
@@ -193,8 +194,8 @@ function ChipRow<T extends string>({ options, value, onChange, accentColor }: {
             style={{
               flexDirection: 'row', alignItems: 'center', gap: 6,
               paddingHorizontal: 14, paddingVertical: 9, borderRadius: 100,
-              backgroundColor: selected ? `${color}22` : '#0C0C20',
-              borderWidth: 1.5, borderColor: selected ? color : '#1A1A35',
+              backgroundColor: selected ? `${color}22` : 'rgba(0,0,0,0.3)',
+              borderWidth: 1.5, borderColor: selected ? color : 'rgba(255,255,255,0.1)',
             }}
           >
             <Ionicons name={o.icon as any} size={14} color={selected ? color : '#4B5563'} />
@@ -355,14 +356,19 @@ export function AddReminderModal({ visible, onClose, onSave }: AddReminderModalP
           />
 
           {/* ── Bottom sheet — sibling of backdrop, not child ── */}
-          <View style={{
-            backgroundColor: '#09091E',
-            borderTopLeftRadius: 32,
-            borderTopRightRadius: 32,
-            borderTopWidth: 1.5,
-            borderColor: '#2A1A50',
-            maxHeight: '92%',
-          }}>
+          <BlurView
+            intensity={40}
+            tint="dark"
+            style={{
+              backgroundColor: 'rgba(9, 9, 30, 0.65)',
+              borderTopLeftRadius: 32,
+              borderTopRightRadius: 32,
+              borderTopWidth: 1.5,
+              borderColor: 'rgba(255,255,255,0.15)',
+              maxHeight: '92%',
+              overflow: 'hidden',
+            }}
+          >
             {/* Drag Handle */}
             <View style={{ alignItems: 'center', paddingTop: 14, paddingBottom: 6 }}>
               <View style={{ width: 44, height: 5, borderRadius: 3, backgroundColor: '#3A2A60' }} />
@@ -395,11 +401,10 @@ export function AddReminderModal({ visible, onClose, onSave }: AddReminderModalP
               </TouchableOpacity>
             </View>
 
-            {/* ── Mode Tabs ── */}
             <View style={{ flexDirection: 'row', paddingHorizontal: 24, marginBottom: 18, gap: 10 }}>
               <TouchableOpacity
                 onPress={() => { setMode('normal'); setColor(REMINDER_COLORS[0].hex); }}
-                style={{ flex: 1, paddingVertical: 10, borderRadius: 14, backgroundColor: !isMed ? '#7C3AED' : '#0C0C20', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6, borderWidth: 1.5, borderColor: !isMed ? '#A78BFA' : '#1A1A35' }}
+                style={{ flex: 1, paddingVertical: 10, borderRadius: 14, backgroundColor: !isMed ? '#7C3AED' : 'rgba(0,0,0,0.3)', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6, borderWidth: 1.5, borderColor: !isMed ? '#A78BFA' : 'rgba(255,255,255,0.1)' }}
               >
                 <Ionicons name="alarm-outline" size={16} color={!isMed ? '#FFF' : '#6B7280'} />
                 <Text style={{ color: !isMed ? '#FFF' : '#6B7280', fontSize: 13, fontWeight: '700' }}>Normal</Text>
@@ -407,7 +412,7 @@ export function AddReminderModal({ visible, onClose, onSave }: AddReminderModalP
 
               <TouchableOpacity
                 onPress={() => { setMode('medication'); setColor('#22D3EE'); }}
-                style={{ flex: 1, paddingVertical: 10, borderRadius: 14, backgroundColor: isMed ? '#0891B2' : '#0C0C20', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6, borderWidth: 1.5, borderColor: isMed ? '#67E8F9' : '#1A1A35' }}
+                style={{ flex: 1, paddingVertical: 10, borderRadius: 14, backgroundColor: isMed ? '#0891B2' : 'rgba(0,0,0,0.3)', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6, borderWidth: 1.5, borderColor: isMed ? '#67E8F9' : 'rgba(255,255,255,0.1)' }}
               >
                 <Ionicons name="medical-outline" size={16} color={isMed ? '#FFF' : '#6B7280'} />
                 <Text style={{ color: isMed ? '#FFF' : '#6B7280', fontSize: 13, fontWeight: '700' }}>Medicamento</Text>
@@ -421,7 +426,7 @@ export function AddReminderModal({ visible, onClose, onSave }: AddReminderModalP
               scrollEventThrottle={16}
               overScrollMode="always"
               bounces={Platform.OS === 'ios'}
-              contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 48 : 36, gap: 24 }}
+              contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 80 : 80, gap: 24 }}
             >
               {isMed ? (
                 <>
@@ -506,34 +511,23 @@ export function AddReminderModal({ visible, onClose, onSave }: AddReminderModalP
                 <>
                   <Animated.View entering={FadeInDown.delay(50).springify()}>
                     <SectionLabel icon="pencil-outline" title="Nombre" />
-                    <TextInput value={title} onChangeText={setTitle} placeholder="Ej: Tomar pastilla mañana a las 8pm" placeholderTextColor="#2D3748" returnKeyType="done" style={{ backgroundColor: '#0C0C20', color: '#FFF', borderRadius: 16, paddingHorizontal: 18, paddingVertical: 15, fontSize: 16, borderWidth: 1.5, borderColor: '#2A1A50' }} />
+                    <TextInput value={title} onChangeText={setTitle} placeholder="Ej: Tomar pastilla mañana a las 8pm" placeholderTextColor="#2D3748" returnKeyType="done" style={{ backgroundColor: 'rgba(0,0,0,0.3)', color: '#FFF', borderRadius: 16, paddingHorizontal: 18, paddingVertical: 15, fontSize: 16, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.1)' }} />
                   </Animated.View>
 
                   <Animated.View entering={FadeInDown.delay(80).springify()}>
                     <SectionLabel icon="time-outline" title="Hora exacta" />
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-                      <TouchableOpacity onPress={() => { setHour(9); setMinute(0); setAmPm('AM'); }} style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 100, backgroundColor: '#0C0C20', borderWidth: 1.5, borderColor: '#A78BFA' }}>
+                      <TouchableOpacity onPress={() => { setHour(9); setMinute(0); setAmPm('AM'); }} style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 100, backgroundColor: 'rgba(0,0,0,0.3)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.1)' }}>
                         <Text style={{ color: '#A78BFA', fontSize: 13, fontWeight: '700' }}>Mañana (9:00 AM)</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity onPress={() => { setHour(2); setMinute(0); setAmPm('PM'); }} style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 100, backgroundColor: '#0C0C20', borderWidth: 1.5, borderColor: '#A78BFA' }}>
+                      <TouchableOpacity onPress={() => { setHour(2); setMinute(0); setAmPm('PM'); }} style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 100, backgroundColor: 'rgba(0,0,0,0.3)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.1)' }}>
                         <Text style={{ color: '#A78BFA', fontSize: 13, fontWeight: '700' }}>Tarde (2:00 PM)</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity onPress={() => { setHour(8); setMinute(0); setAmPm('PM'); }} style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 100, backgroundColor: '#0C0C20', borderWidth: 1.5, borderColor: '#A78BFA' }}>
+                      <TouchableOpacity onPress={() => { setHour(8); setMinute(0); setAmPm('PM'); }} style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 100, backgroundColor: 'rgba(0,0,0,0.3)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.1)' }}>
                         <Text style={{ color: '#A78BFA', fontSize: 13, fontWeight: '700' }}>Noche (8:00 PM)</Text>
                       </TouchableOpacity>
                     </View>
 
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-                      <TouchableOpacity onPress={() => { setHour(9); setMinute(0); setAmPm('AM'); }} style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 100, backgroundColor: '#0C0C20', borderWidth: 1.5, borderColor: '#A78BFA' }}>
-                        <Text style={{ color: '#A78BFA', fontSize: 13, fontWeight: '700' }}>Mañana (9:00 AM)</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => { setHour(2); setMinute(0); setAmPm('PM'); }} style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 100, backgroundColor: '#0C0C20', borderWidth: 1.5, borderColor: '#A78BFA' }}>
-                        <Text style={{ color: '#A78BFA', fontSize: 13, fontWeight: '700' }}>Tarde (2:00 PM)</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => { setHour(8); setMinute(0); setAmPm('PM'); }} style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 100, backgroundColor: '#0C0C20', borderWidth: 1.5, borderColor: '#A78BFA' }}>
-                        <Text style={{ color: '#A78BFA', fontSize: 13, fontWeight: '700' }}>Noche (8:00 PM)</Text>
-                      </TouchableOpacity>
-                    </View>
 
                     {Platform.OS === 'ios' ? (
                       <View style={{ backgroundColor: '#1A1A35', borderRadius: 16, overflow: 'hidden' }}>
@@ -549,7 +543,7 @@ export function AddReminderModal({ visible, onClose, onSave }: AddReminderModalP
                       <>
                         <TouchableOpacity 
                           onPress={() => setShowTimePickerAndroid(true)} 
-                          style={{ backgroundColor: '#0C0C20', borderRadius: 14, paddingVertical: 18, alignItems: 'center', borderWidth: 1.5, borderColor: '#2A1A50' }}
+                          style={{ backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 14, paddingVertical: 18, alignItems: 'center', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.1)' }}
                         >
                            <Text style={{ color: '#FFF', fontSize: 32, fontWeight: '900', letterSpacing: 2 }}>{pad(hour)}:{pad(minute)} {ampm}</Text>
                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
@@ -597,8 +591,8 @@ export function AddReminderModal({ visible, onClose, onSave }: AddReminderModalP
                                 style={{
                                   flexDirection: 'row', alignItems: 'center', gap: 6,
                                   paddingHorizontal: 14, paddingVertical: 9, borderRadius: 100,
-                                  backgroundColor: sel ? `${c.color}22` : '#0C0C20',
-                                  borderWidth: 1.5, borderColor: sel ? c.color : '#1A1A35',
+                                  backgroundColor: sel ? `${c.color}22` : 'rgba(0,0,0,0.3)',
+                                  borderWidth: 1.5, borderColor: sel ? c.color : 'rgba(255,255,255,0.1)',
                                 }}
                               >
                                 <Ionicons name={c.icon as any} size={14} color={sel ? c.color : '#4B5563'} />
@@ -640,7 +634,7 @@ export function AddReminderModal({ visible, onClose, onSave }: AddReminderModalP
 
                       <Animated.View entering={FadeInDown.delay(400).springify()}>
                         <SectionLabel icon="document-text-outline" title="Notas (opcional)" />
-                        <TextInput value={notes} onChangeText={setNotes} placeholder="Agrega detalles adicionales..." placeholderTextColor="#2D3748" multiline numberOfLines={3} textAlignVertical="top" style={{ backgroundColor: '#0C0C20', color: '#FFF', borderRadius: 16, paddingHorizontal: 18, paddingVertical: 14, fontSize: 15, borderWidth: 1.5, borderColor: '#2A1A50', minHeight: 90 }} />
+                        <TextInput value={notes} onChangeText={setNotes} placeholder="Agrega detalles adicionales..." placeholderTextColor="#2D3748" multiline numberOfLines={3} textAlignVertical="top" style={{ backgroundColor: 'rgba(0,0,0,0.3)', color: '#FFF', borderRadius: 16, paddingHorizontal: 18, paddingVertical: 14, fontSize: 15, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.1)', minHeight: 90 }} />
                       </Animated.View>
                     </>
                   )}
@@ -669,7 +663,7 @@ export function AddReminderModal({ visible, onClose, onSave }: AddReminderModalP
                 </TouchableOpacity>
               </Animated.View>
             </ScrollView>
-          </View>
+          </BlurView>
         </View>
       </KeyboardAvoidingView>
     </Modal>

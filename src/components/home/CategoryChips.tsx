@@ -21,20 +21,18 @@ export function CategoryChips({ categoryFilter, setCategoryFilter }: CategoryChi
       >
         {/* ── Chip para mostrar "Todos" los recordatorios ── */}
         <TouchableOpacity
-          onPress={() => {
-            Haptics.selectionAsync(); // Pequeña vibración al cambiar de categoría
-            setCategoryFilter('all');
-          }}
+          onPress={() => { Haptics.selectionAsync(); setCategoryFilter('all'); }}
           style={{
-            flexDirection: 'row', alignItems: 'center', gap: 5,
-            paddingHorizontal: 14, paddingVertical: 8, borderRadius: 100,
-            backgroundColor: categoryFilter === 'all' ? '#7C3AED22' : '#0F0F28',
+            flexDirection: 'row', alignItems: 'center', gap: 6,
+            paddingHorizontal: 16, paddingVertical: 10,
+            borderRadius: 20,
+            backgroundColor: categoryFilter === 'all' ? '#FFFFFF22' : 'rgba(0,0,0,0.2)',
             borderWidth: 1.5,
-            borderColor: categoryFilter === 'all' ? '#7C3AED' : '#1A1A35',
+            borderColor: categoryFilter === 'all' ? '#FFFFFF' : 'rgba(255,255,255,0.1)',
           }}
         >
-          <Ionicons name="apps-outline" size={13} color={categoryFilter === 'all' ? '#A78BFA' : '#4B5563'} />
-          <Text style={{ color: categoryFilter === 'all' ? '#A78BFA' : '#4B5563', fontSize: 12, fontWeight: '700' }}>
+          <Ionicons name="apps-outline" size={13} color={categoryFilter === 'all' ? '#FFFFFF' : '#4B5563'} />
+          <Text style={{ color: categoryFilter === 'all' ? '#FFFFFF' : '#4B5563', fontSize: 12, fontWeight: '700' }}>
             Todos
           </Text>
         </TouchableOpacity>
@@ -51,9 +49,9 @@ export function CategoryChips({ categoryFilter, setCategoryFilter }: CategoryChi
               flexDirection: 'row', alignItems: 'center', gap: 5,
               paddingHorizontal: 14, paddingVertical: 8, borderRadius: 100,
               // Si está seleccionado, usamos su color con opacidad (añadiendo '22' al final del HEX)
-              backgroundColor: categoryFilter === c.value ? `${c.color}22` : '#0F0F28',
+              backgroundColor: categoryFilter === c.value ? `${c.color}22` : 'rgba(0,0,0,0.2)',
               borderWidth: 1.5,
-              borderColor: categoryFilter === c.value ? c.color : '#1A1A35',
+              borderColor: categoryFilter === c.value ? c.color : 'rgba(255,255,255,0.1)',
             }}
           >
             <Ionicons name={c.icon as any} size={13} color={categoryFilter === c.value ? c.color : '#4B5563'} />
