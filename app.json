@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/Recordis-icon-app.png",
     "scheme": "recordis",
-    "userInterfaceStyle": "automatic",
+    "runtimeVersion": { "policy": "appVersion" },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#0A0A1C",
@@ -49,7 +49,8 @@
           "defaultChannel": "recordis-alarms",
           "sounds": []
         }
-      ]
+      ],
+      "expo-dev-client"
     ],
     "experiments": {
       "typedRoutes": true,
