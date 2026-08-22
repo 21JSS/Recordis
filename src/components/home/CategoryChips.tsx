@@ -5,6 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import { CATEGORIES, type Category } from '@/constants/categories';
+import { ThemedView } from '@/components/themed-view';
+import { ThemedText } from '@/components/themed-text';
 
 interface CategoryChipsProps {
   categoryFilter: Category | 'all';
@@ -22,19 +24,16 @@ export function CategoryChips({ categoryFilter, setCategoryFilter }: CategoryChi
         {/* ── Chip para mostrar "Todos" los recordatorios ── */}
         <TouchableOpacity
           onPress={() => { Haptics.selectionAsync(); setCategoryFilter('all'); }}
+          className="flex-row items-center gap-1.5 px-4 py-2.5 rounded-[20px] border-[1.5px]"
           style={{
-            flexDirection: 'row', alignItems: 'center', gap: 6,
-            paddingHorizontal: 16, paddingVertical: 10,
-            borderRadius: 20,
             backgroundColor: categoryFilter === 'all' ? '#FFFFFF22' : 'rgba(0,0,0,0.2)',
-            borderWidth: 1.5,
             borderColor: categoryFilter === 'all' ? '#FFFFFF' : 'rgba(255,255,255,0.1)',
           }}
         >
           <Ionicons name="apps-outline" size={13} color={categoryFilter === 'all' ? '#FFFFFF' : '#4B5563'} />
-          <Text style={{ color: categoryFilter === 'all' ? '#FFFFFF' : '#4B5563', fontSize: 12, fontWeight: '700' }}>
+          <ThemedText className="text-sm font-bold" style={{ color: categoryFilter === 'all' ? '#FFFFFF' : '#4B5563' }}>
             Todos
-          </Text>
+          </ThemedText>
         </TouchableOpacity>
 
         {/* ── Mapeo dinámico de todas las categorías definidas en la app ── */}
@@ -45,19 +44,16 @@ export function CategoryChips({ categoryFilter, setCategoryFilter }: CategoryChi
               Haptics.selectionAsync();
               setCategoryFilter(c.value);
             }}
+            className="flex-row items-center gap-1 px-3.5 py-2 rounded-full border-[1.5px]"
             style={{
-              flexDirection: 'row', alignItems: 'center', gap: 5,
-              paddingHorizontal: 14, paddingVertical: 8, borderRadius: 100,
-              // Si está seleccionado, usamos su color con opacidad (añadiendo '22' al final del HEX)
               backgroundColor: categoryFilter === c.value ? `${c.color}22` : 'rgba(0,0,0,0.2)',
-              borderWidth: 1.5,
               borderColor: categoryFilter === c.value ? c.color : 'rgba(255,255,255,0.1)',
             }}
           >
             <Ionicons name={c.icon as any} size={13} color={categoryFilter === c.value ? c.color : '#4B5563'} />
-            <Text style={{ color: categoryFilter === c.value ? c.color : '#4B5563', fontSize: 12, fontWeight: '700' }}>
+            <ThemedText className="text-sm font-bold" style={{ color: categoryFilter === c.value ? c.color : '#4B5563' }}>
               {c.label}
-            </Text>
+            </ThemedText>
           </TouchableOpacity>
         ))}
       </ScrollView>

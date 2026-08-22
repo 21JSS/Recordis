@@ -10,6 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { ThemedView } from '@/components/themed-view';
 
 interface FABProps {
   fabBottom: number;
@@ -19,7 +20,7 @@ interface FABProps {
 export function FAB({ fabBottom, onPress }: FABProps) {
   // ── Animación de Pulso (Latido) ──
   const fabScale = useSharedValue(1);
-  
+
   useEffect(() => {
     // Hace que el botón "palpite" constantemente para llamar la atención del usuario
     fabScale.value = withRepeat(
@@ -31,16 +32,18 @@ export function FAB({ fabBottom, onPress }: FABProps) {
       false  // No revertir, empezar desde el principio cada vez
     );
   }, []);
-  
+
   const fabStyle = useAnimatedStyle(() => ({ transform: [{ scale: fabScale.value }] }));
 
   return (
-    <View style={{
-      position: 'absolute',
-      bottom: fabBottom,   // Posición calculada en index.tsx para no tapar la barra nativa de navegación
-      right: 22,
-      zIndex: 50,          // Por debajo de los confetis (999) pero por encima de las listas
-    }}>
+    <ThemedView
+      style={{
+        position: 'absolute',
+        bottom: fabBottom, // Posición calculada en index.tsx para no tapar la barra nativa de navegación
+        right: 22,
+        zIndex: 50, // Por debajo de los confetis (999) pero por encima de las listas
+      }}
+    >
       <Animated.View style={fabStyle}>
         <TouchableOpacity
           onPress={() => {
@@ -48,19 +51,7 @@ export function FAB({ fabBottom, onPress }: FABProps) {
             onPress();
           }}
           activeOpacity={0.85}
-          style={{
-            width: 64,
-            height: 64,
-            borderRadius: 32,
-            backgroundColor: '#A78BFA',
-            alignItems: 'center',
-            justifyContent: 'center',
-            shadowColor: '#7C3AED',
-            shadowOffset: { width: 0, height: 6 },
-            shadowOpacity: 0.5,
-            shadowRadius: 10,
-            elevation: 8, // Sombra en Android
-          }}
+          className="w-16 h-16 rounded-full bg-primary items-center justify-center shadow-lg"
         >
           <Ionicons
             name="add"
@@ -69,6 +60,6 @@ export function FAB({ fabBottom, onPress }: FABProps) {
           />
         </TouchableOpacity>
       </Animated.View>
-    </View>
+    </ThemedView>
   );
 }
